@@ -215,12 +215,6 @@ textarea{resize:vertical}
   <div class="gatecard">
     <h1>申訴案件管理系統</h1>
     <p class="sub" id="gateMsg">載入中…</p>
-    <form id="loginForm" hidden>
-      <label class="field" for="lg-email">Email<input type="email" id="lg-email" autocomplete="username" required></label>
-      <label class="field" for="lg-pw">密碼<input type="password" id="lg-pw" autocomplete="current-password" required></label>
-      <button type="submit" class="btn primary" id="lgBtn">登入</button>
-    </form>
-    <button type="button" class="btn" id="gateOut" hidden>登出</button>
   </div>
 </div>
 
@@ -231,7 +225,6 @@ textarea{resize:vertical}
       <p class="sub">依性別平等工作法、職業安全衛生法職場霸凌專章及相關準則，逐階段計算法定完成期限。填入某階段的實際完成日，後面階段的預計完成日隨即重新計算。</p>
     </div>
     <div class="topright">
-      <div class="user"><span id="userInfo"></span><button type="button" class="btn small" id="logoutBtn">登出</button></div>
       <label class="asof" for="asof">檢視日期（預設今天，可改日期模擬）
         <input type="date" id="asof">
       </label>
@@ -346,7 +339,7 @@ textarea{resize:vertical}
   </details>
 
   <footer class="foot">
-    <span>資料存放於 Supabase 雲端，只有被授權的帳號能存取。申訴人與被申訴人建議只用代稱登錄。</span>
+    <span>資料存放於 Supabase 雲端。目前未設登入，任何知道網址的人都能讀寫案件，申訴人與被申訴人建議只用代稱登錄。</span>
     <button type="button" class="btn small" id="importBtn" hidden>匯入本機舊資料</button>
   </footer>
 </div>
@@ -487,10 +480,8 @@ function compute(cs){
 var SB_URL='https://nshoqlxprflesuhpgwpp.supabase.co';
 var SB_KEY='sb_publishable_WmM9q7IwtZCO2wBovXXL2w_y3ICPWur'; // 公開金鑰，權限由資料庫的 RLS 控管
 var sb=null;try{sb=window.supabase.createClient(SB_URL,SB_KEY);}catch(e){}
-var role='none';
 var canEdit=false;
 var SET_KEYS=['holidays','sh2','sh3','sh4','trk','remind'];
-var ROLE_LABEL={handler:'承辦人（可編輯）',supervisor:'主管（唯讀）'};
 
 function uuid(){return window.crypto&&crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&3|8)).toString(16);});}
 function toRow(cs){
@@ -792,60 +783,26 @@ $('#importBtn').addEventListener('click',importLegacy);
 
 $('#asof').value=fISO(asOf);
 
-/* ---------- 登入與權限 ---------- */
+/* ---------- 啟動（未設登入：任何人皆可讀寫） ---------- */
 function gate(mode,msg){
   document.body.setAttribute('data-auth',mode);
   $('#gateMsg').textContent=msg||'';
-  $('#loginForm').hidden=mode!=='out';
-  $('#gateOut').hidden=!(mode==='blocked'||mode==='error');
 }
-function applyRole(email){
-  canEdit=role==='handler';
-  $('#userInfo').textContent=email+'・'+(ROLE_LABEL[role]||role);
-  $('#toggleNew').hidden=!canEdit;
-  $('#importBtn').hidden=!canEdit;
-  ['remindDays','holidays','i-sh2','i-sh3','i-sh4','i-trk'].forEach(function(id){$('#'+id).disabled=!canEdit;});
-}
-function clearScreen(){
-  state.cases=[];selected=null;role='none';canEdit=false;
-  ['#cases','#detail','#rlist','#sum'].forEach(function(q){$(q).innerHTML='';});
-  document.title='申訴案件管理系統';
-}
-function boot(session){
+function start(){
+  if(!sb){gate('error','無法載入 Supabase 程式庫，請確認網路連線後重新整理。');return;}
   gate('loading','載入中…');
-  var email=session.user.email||'';
-  sb.from('profiles').select('role').eq('id',session.user.id).maybeSingle().then(function(r){
-    if(r.error)throw r.error;
-    role=(r.data&&r.data.role)||'none';
-    if(role==='none'){gate('blocked','此帳號（'+email+'）尚未取得使用權限，請聯絡管理者開通。');return;}
-    return loadAll().then(function(){
-      applyRole(email);renderSettings();renderAll();gate('in');
-    });
-  }).catch(function(err){gate('error','載入失敗：'+(err.message||err));});
+  canEdit=true;
+  $('#toggleNew').hidden=false;$('#importBtn').hidden=false;
+  loadAll().then(function(){renderSettings();renderAll();gate('in');})
+    .catch(function(err){gate('error','載入失敗：'+(err.message||err));});
 }
-function signOut(){return sb.auth.signOut().then(function(){clearScreen();gate('out','已登出');});}
-$('#loginForm').addEventListener('submit',function(e){
-  e.preventDefault();
-  var btn=$('#lgBtn');btn.disabled=true;
-  sb.auth.signInWithPassword({email:$('#lg-email').value.trim(),password:$('#lg-pw').value}).then(function(res){
-    btn.disabled=false;
-    if(res.error){$('#gateMsg').textContent='登入失敗，請確認帳號與密碼。';return;}
-    $('#lg-pw').value='';boot(res.data.session);
-  });
-});
-$('#gateOut').addEventListener('click',signOut);
-$('#logoutBtn').addEventListener('click',signOut);
 document.addEventListener('visibilitychange',function(){
   // 切回此分頁時同步雲端資料；正在輸入時不更新，避免打斷
   if(document.visibilityState!=='visible'||document.body.getAttribute('data-auth')!=='in')return;
   var a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;
   loadAll().then(function(){renderAll();});
 });
-if(!sb){gate('error','無法載入 Supabase 程式庫，請確認網路連線後重新整理。');}
-else{
-  sb.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_OUT'){clearScreen();gate('out');}});
-  sb.auth.getSession().then(function(r){if(r.data&&r.data.session)boot(r.data.session);else gate('out');});
-}
+start();
 })();
 </script>
 
