@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>申訴案件管理系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap">
+<style>
+/* Layout: 左側案件清單 + 右側垂直時程軸（階段順序即資訊）；手機改為上下堆疊 */
+:root{
+  --bg:#F2F5F6; --surface:#FFFFFF; --ink:#17232B; --muted:#5A6972; --line:#D6DEE2;
+  --accent:#1D5C74; --accent-ink:#FFFFFF; --accent-soft:#E1EDF2;
+  --ok:#1C7347; --ok-soft:#E0F1E7;
+  --warn:#8F5600; --warn-soft:#FBEACB;
+  --bad:#B3261E; --bad-soft:#FBE0DD;
+  --idle:#7D8A92;
+  --sh:#7B3FA0; --sh-soft:#F0E6F7; --bl:#B85A0A; --bl-soft:#FCEBDA;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-head:"Noto Serif TC","Songti TC","PMingLiU",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E161B; --surface:#162128; --ink:#E5ECEF; --muted:#95A4AD; --line:#2A3941;
+    --accent:#72BAD3; --accent-ink:#0E161B; --accent-soft:#1A3441;
+    --ok:#62CC96; --ok-soft:#173329;
+    --warn:#EBB65E; --warn-soft:#3A2F16;
+    --bad:#FF8C82; --bad-soft:#3E1F1D;
+    --sh:#C99BE8; --sh-soft:#2E2039; --bl:#F2A867; --bl-soft:#3A2715;
+    --idle:#7C8B94; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E161B; --surface:#162128; --ink:#E5ECEF; --muted:#95A4AD; --line:#2A3941;
+  --accent:#72BAD3; --accent-ink:#0E161B; --accent-soft:#1A3441;
+  --ok:#62CC96; --ok-soft:#173329;
+  --warn:#EBB65E; --warn-soft:#3A2F16;
+  --bad:#FF8C82; --bad-soft:#3E1F1D;
+  --sh:#C99BE8; --sh-soft:#2E2039; --bl:#F2A867; --bl-soft:#3A2715;
+  --idle:#7C8B94; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.6 var(--f-body);padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:1180px;margin-inline:auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3,h4,p{margin:0}
+h1,h2,h3{text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* top */
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+.top h1{font:700 1.65rem/1.25 var(--f-head)}
+.top .sub{color:var(--muted);font-size:.85rem;margin-top:4px;max-width:46rem}
+.asof{display:flex;flex-direction:column;gap:2px;font-size:.78rem;color:var(--muted)}
+.asof input{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-height:38px}
+
+/* summary */
+.sum{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.sum div{padding:12px 16px;display:flex;flex-direction:column;gap:0;min-width:0}
+.sum div+div{border-left:1px solid var(--line)}
+.sum b{font:700 1.7rem/1.2 var(--f-head);font-variant-numeric:tabular-nums}
+.sum span{font-size:.78rem;color:var(--muted)}
+.sum .bad b{color:var(--bad)} .sum .warn b{color:var(--warn)} .sum .ok b{color:var(--ok)}
+@media (max-width:640px){
+  .sum{grid-template-columns:repeat(2,1fr)}
+  .sum div:nth-child(3){border-left:0}
+  .sum div:nth-child(n+3){border-top:1px solid var(--line)}
+}
+
+/* main */
+.main{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
+@media (min-width:920px){.main{grid-template-columns:340px minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.list-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.list-head h2{font:700 1rem/1.3 var(--f-head)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;padding:6px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:.88rem}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:500}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.small{min-height:32px;padding:2px 10px;font-size:.8rem}
+.cases{list-style:none;margin:0;padding:0}
+.case{display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);border-left:5px solid var(--line);padding:12px 14px;cursor:pointer;display:grid;gap:3px}
+.case[data-t="SH"]{border-left-color:var(--sh)}
+.case[data-t="BL"]{border-left-color:var(--bl)}
+.case .r4{font-size:.78rem;color:var(--muted)}
+.case:last-child{border-bottom:0}
+.case:hover{background:var(--bg)}
+.case[aria-current="true"]{background:var(--accent-soft)}
+.case .r1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.case .no{font:700 .98rem var(--f-head)}
+.case .r2{font-size:.86rem}
+.case .r3{font-size:.8rem;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.chip{font-size:.72rem;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip[data-t="SH"]{color:var(--sh);border-color:var(--sh);background:var(--sh-soft);font-weight:500}
+.chip[data-t="BL"]{color:var(--bl);border-color:var(--bl);background:var(--bl-soft);font-weight:500}
+.filters{display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--line)}
+.fbtn{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:2px 10px;border-radius:99px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:.8rem}
+.fbtn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);font-weight:500}
+.fbtn i{width:10px;height:10px;border-radius:50%;background:var(--idle);flex:none}
+.fbtn[data-f="SH"] i{background:var(--sh)} .fbtn[data-f="BL"] i{background:var(--bl)}
+
+/* gate / auth */
+body:not([data-auth="in"]) .wrap{display:none}
+body[data-auth="in"] .gate{display:none}
+.gate{min-height:70vh;display:grid;place-items:center}
+.gatecard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px;width:min(380px,100%);display:grid;gap:14px}
+.gatecard h1{font:700 1.4rem/1.3 var(--f-head)}
+.gatecard form{display:grid;gap:12px}
+.topright{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.user{display:flex;gap:8px;align-items:center;font-size:.8rem;color:var(--muted);flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:640px){.topright{align-items:flex-start}.user{justify-content:flex-start}}
+.field input:disabled,.field select:disabled,.field textarea:disabled{background:var(--bg);color:var(--ink);opacity:.85}
+
+/* reminders */
+.remind .list-head{flex-wrap:wrap}
+.rtools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rtools .field{flex-direction:row;align-items:center;gap:6px;font-size:.8rem}
+.rtools .field select{width:auto;min-height:32px;padding:2px 6px}
+.rlist{list-style:none;margin:0;padding:0}
+.ritem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 12px;align-items:center;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);border-left:5px solid var(--line);padding:10px 14px;cursor:pointer}
+.ritem[data-t="SH"]{border-left-color:var(--sh)}
+.ritem[data-t="BL"]{border-left-color:var(--bl)}
+.ritem:hover{background:var(--bg)}
+.ritem .rn{font-weight:700;font-size:.9rem}
+.ritem .rs{font-size:.84rem;min-width:0}
+.ritem .rd{font-size:.8rem;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ritem[data-st="overdue"] .rd{color:var(--bad);font-weight:700}
+.ritem[data-st="soon"] .rd{color:var(--warn);font-weight:700}
+.rnote{padding:10px 14px;font-size:.78rem;color:var(--muted)}
+@media (max-width:640px){.ritem{grid-template-columns:minmax(0,1fr) auto}.ritem .chip{display:none}}
+.detail[data-t="SH"] .dhead{border-top:5px solid var(--sh)}
+.detail[data-t="BL"] .dhead{border-top:5px solid var(--bl)}
+.detail[data-t="SH"] .dtitle h2{color:var(--sh)}
+.detail[data-t="BL"] .dtitle h2{color:var(--bl)}
+.info{padding-top:4px;border-top:1px dashed var(--line)}
+.info .wide{grid-column:1/-1}
+.info textarea{min-height:5.5rem}
+.pill{font-size:.74rem;font-weight:500;padding:2px 9px;border-radius:99px;white-space:nowrap;background:var(--bg);color:var(--muted)}
+.pill[data-st="done"],.pill[data-st="closed"]{background:var(--ok-soft);color:var(--ok)}
+.pill[data-st="late"],.pill[data-st="soon"]{background:var(--warn-soft);color:var(--warn)}
+.pill[data-st="overdue"]{background:var(--bad-soft);color:var(--bad)}
+.pill[data-st="overdue-int"]{background:var(--warn-soft);color:var(--warn)}
+.pill[data-st="active"]{background:var(--accent-soft);color:var(--accent)}
+.newform{padding:14px;border-bottom:1px solid var(--line);display:grid;gap:10px;background:var(--bg)}
+.field{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--muted);min-width:0}
+.field input,.field select,.field textarea{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-height:38px;width:100%;font-size:.9rem}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));gap:10px}
+
+/* detail */
+.detail{display:flex;flex-direction:column}
+.dhead{padding:16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.dtitle{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.dtitle h2{font:700 1.35rem/1.3 var(--f-head)}
+.dtitle .who{color:var(--muted);font-size:.85rem}
+.cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:10px;align-items:end}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:.84rem;min-height:38px;padding-top:6px}
+.check input{width:18px;height:18px;margin-top:3px;accent-color:var(--accent);flex:none}
+.notice{font-size:.82rem;background:var(--warn-soft);color:var(--warn);border-radius:6px;padding:8px 12px}
+.now{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:4px 20px;align-items:baseline;background:var(--accent-soft)}
+.now .lbl{font-size:.76rem;color:var(--muted)}
+.now b{font:700 1.02rem var(--f-head)}
+.timeline{list-style:none;margin:0;padding:8px 16px 16px}
+.step{position:relative;padding:14px 0 14px 34px;border-bottom:1px dashed var(--line)}
+.step:last-child{border-bottom:0}
+.step::before{content:"";position:absolute;left:8px;top:34px;bottom:-14px;width:2px;background:var(--line)}
+.step:last-child::before{display:none}
+.dot{position:absolute;left:0;top:18px;width:18px;height:18px;border-radius:50%;background:var(--surface);border:2px solid var(--idle)}
+.step[data-st="done"] .dot{background:var(--ok);border-color:var(--ok)}
+.step[data-st="late"] .dot{background:var(--warn);border-color:var(--warn)}
+.step[data-st="overdue"] .dot{border-color:var(--bad);background:var(--bad-soft)}
+.step[data-st="soon"] .dot{border-color:var(--warn);background:var(--warn-soft)}
+.step.cur .dot{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.step[data-st="wait"],.step[data-st="na"],.step[data-st="lapsed"]{opacity:.72}
+.step[data-st="wait"] .dot,.step[data-st="na"] .dot,.step[data-st="lapsed"] .dot{border-style:dashed}
+.step-head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between}
+.step-head h4{font-size:1rem;font-weight:700;min-width:0}
+.meta{font-size:.78rem;color:var(--muted);margin-top:2px}
+.kind{font-weight:500;margin-right:4px;color:var(--accent)}
+.kind[data-k="internal"]{color:var(--warn)}
+.kind[data-k="party"]{color:var(--muted)}
+.rule{font-size:.84rem;margin-top:2px}
+.dates{display:grid;grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));gap:10px 16px;margin-top:10px}
+.dcell{display:flex;flex-direction:column;gap:1px;min-width:0}
+.dcell .lbl{font-size:.74rem;color:var(--muted)}
+.dv{font-size:.98rem;font-variant-numeric:tabular-nums;min-height:38px;display:flex;align-items:center}
+.dcell input[type=date]{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-height:38px;width:100%;max-width:13rem}
+.dcell input[disabled]{background:var(--bg)}
+.rel{font-size:.78rem;color:var(--muted)}
+.rel[data-st="overdue"]{color:var(--bad);font-weight:500}
+.rel[data-st="soon"]{color:var(--warn);font-weight:500}
+.rel[data-st="late"]{color:var(--warn)}
+.act-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.chg{font-size:.76rem;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:1px 6px;width:fit-content;animation:flash 1.6s ease-out 1}
+@keyframes flash{0%{outline:2px solid var(--accent)}100%{outline:2px solid transparent}}
+@media (prefers-reduced-motion:reduce){.chg{animation:none}}
+
+/* misc */
+details.ref{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+details.ref>summary{cursor:pointer;padding:12px 16px;font-weight:700;font-family:var(--f-head);list-style-position:inside}
+details.ref .body{padding:0 16px 16px;display:grid;gap:12px;font-size:.86rem}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:.82rem}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500;white-space:nowrap}
+textarea{resize:vertical}
+.foot{font-size:.78rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:center}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:.88rem;max-width:calc(100vw - 32px);z-index:9}
+</style>
+
+<div class="gate" id="gate">
+  <div class="gatecard">
+    <h1>申訴案件管理系統</h1>
+    <p class="sub" id="gateMsg">載入中…</p>
+    <form id="loginForm" hidden>
+      <label class="field" for="lg-email">Email<input type="email" id="lg-email" autocomplete="username" required></label>
+      <label class="field" for="lg-pw">密碼<input type="password" id="lg-pw" autocomplete="current-password" required></label>
+      <button type="submit" class="btn primary" id="lgBtn">登入</button>
+    </form>
+    <button type="button" class="btn" id="gateOut" hidden>登出</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>申訴案件管理系統</h1>
+      <p class="sub">依性別平等工作法、職業安全衛生法職場霸凌專章及相關準則，逐階段計算法定完成期限。填入某階段的實際完成日，後面階段的預計完成日隨即重新計算。</p>
+    </div>
+    <div class="topright">
+      <div class="user"><span id="userInfo"></span><button type="button" class="btn small" id="logoutBtn">登出</button></div>
+      <label class="asof" for="asof">檢視日期（預設今天，可改日期模擬）
+        <input type="date" id="asof">
+      </label>
+    </div>
+  </header>
+
+  <section class="sum" id="sum" aria-label="案件總覽"></section>
+
+  <section class="panel remind" id="remind" aria-label="提醒事項">
+    <div class="list-head">
+      <h2>提醒事項 <span class="chip" id="remindCount"></span></h2>
+      <div class="rtools">
+        <label class="field" for="remindDays">提前
+          <select id="remindDays"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="7">7</option></select>
+          日提醒
+        </label>
+        <button type="button" class="btn small" id="icsBtn">匯出行事曆 (.ics)</button>
+      </div>
+    </div>
+    <ul class="rlist" id="rlist"></ul>
+    <p class="rnote">提醒面板在每次開啟頁面時更新，分頁標題會顯示待處理數量。頁面關閉後的提醒，請匯出 .ics 匯入 Google、Apple 或 Outlook 行事曆（內含到期前的提醒，只含案號與階段，不含當事人資料）。</p>
+  </section>
+
+  <div class="main">
+    <section class="panel" aria-label="案件清單">
+      <div class="list-head">
+        <h2>案件清單</h2>
+        <button type="button" class="btn small" id="toggleNew" aria-expanded="false" aria-controls="newform">＋ 新增案件</button>
+      </div>
+      <div class="filters" id="filters" role="group" aria-label="依申訴類別篩選">
+        <button type="button" class="fbtn" data-f="" aria-pressed="true"><i></i>全部</button>
+        <button type="button" class="fbtn" data-f="SH" aria-pressed="false"><i></i>職場性騷擾</button>
+        <button type="button" class="fbtn" data-f="BL" aria-pressed="false"><i></i>職場霸凌</button>
+      </div>
+      <form class="newform" id="newform" hidden>
+        <div class="fgrid">
+          <label class="field" for="n-type">申訴類別
+            <select id="n-type"><option value="SH">職場性騷擾</option><option value="BL">職場霸凌</option></select>
+          </label>
+          <label class="field" for="n-tier">僱用人數
+            <select id="n-tier"><option value="100">100 人以上</option><option value="30">30–99 人</option><option value="0">未達 30 人</option></select>
+          </label>
+        </div>
+        <div class="fgrid">
+          <label class="field" for="n-date">申訴日期（接獲申訴日）
+            <input type="date" id="n-date" required>
+          </label>
+          <label class="field" for="n-ch">申訴管道
+            <select id="n-ch"></select>
+          </label>
+        </div>
+        <label class="field" for="n-dept">部門
+          <input type="text" id="n-dept" maxlength="30" placeholder="例：客服部">
+        </label>
+        <div class="fgrid">
+          <label class="field" for="n-a">申訴人（建議用代稱）
+            <input type="text" id="n-a" value="申訴人" maxlength="20">
+          </label>
+          <label class="field" for="n-b">被申訴人（建議用代稱）
+            <input type="text" id="n-b" value="被申訴人" maxlength="20">
+          </label>
+        </div>
+        <label class="field" for="n-desc">發生情況（資料只存在這個瀏覽器，請避免寫可識別身分的細節）
+          <textarea id="n-desc" rows="3" maxlength="1000"></textarea>
+        </label>
+        <button type="submit" class="btn primary">建立案件</button>
+      </form>
+      <ul class="cases" id="cases"></ul>
+    </section>
+
+    <section class="panel detail" id="detail" aria-live="polite"></section>
+  </div>
+
+  <details class="ref">
+    <summary>計算設定（假日、內部目標天數）</summary>
+    <div class="body">
+      <label class="field" for="holidays">休息日與國定假日（每行或以逗號分隔，格式 2026-10-09；週六日已自動排除）。目前為示範用 2026 年假日，請依公司行事曆更新。
+        <textarea id="holidays" rows="4"></textarea>
+      </label>
+      <div class="fgrid">
+        <label class="field" for="i-sh2">性騷擾：組成調查小組（自申訴日起，日）<input type="number" id="i-sh2" min="0" max="60"></label>
+        <label class="field" for="i-sh3">性騷擾：完成調查（自小組成立起，日）<input type="number" id="i-sh3" min="1" max="90"></label>
+        <label class="field" for="i-sh4">性騷擾：審議決議（自調查完成起，日）<input type="number" id="i-sh4" min="1" max="60"></label>
+        <label class="field" for="i-trk">追蹤考核（自結案起，日）<input type="number" id="i-trk" min="1" max="180"></label>
+      </div>
+      <p class="rel">內部目標不是法定期限，僅供排程；法定期限不受這些數字影響，只受假日影響。</p>
+    </div>
+  </details>
+
+  <details class="ref">
+    <summary>法定期限與計算規則</summary>
+    <div class="body">
+      <div class="tw"><table>
+        <thead><tr><th>類型</th><th>階段</th><th>法定期限</th><th>依據</th></tr></thead>
+        <tbody>
+          <tr><td>性騷擾</td><td>接獲申訴</td><td>立即採取有效糾正補救措施並通知地方主管機關</td><td>準則 §6、§11</td></tr>
+          <tr><td>性騷擾</td><td>結案</td><td>接獲申訴翌日起 2 個月內；必要時延長 1 個月並通知當事人</td><td>準則 §18 I</td></tr>
+          <tr><td>性騷擾</td><td>內部申復</td><td>準則未規定；不服可向地方主管機關申訴</td><td>準則 §18 II、性平法 §32-1</td></tr>
+          <tr><td>霸凌</td><td>受理決定</td><td>接獲申訴起 10 個工作日內</td><td>準則 §10</td></tr>
+          <tr><td>霸凌</td><td>登錄系統</td><td>受理翌日起 7 個工作日內</td><td>準則 §11</td></tr>
+          <tr><td>霸凌</td><td>組成調查小組（100 人以上）</td><td>受理日起 15 個工作日內</td><td>準則 §14</td></tr>
+          <tr><td>霸凌</td><td>調查報告（100 人以上）</td><td>小組成立翌日起 2 個月；得延長 1 個月；協調期間不計</td><td>準則 §17</td></tr>
+          <tr><td>霸凌</td><td>審議決定（100 人以上）</td><td>調查報告完成起 1 個月內</td><td>準則 §18 I</td></tr>
+          <tr><td>霸凌</td><td>決定（30–99 人 / 未達 30 人）</td><td>接獲申訴翌日起 4 個月 / 3 個月內；得延長 1 個月</td><td>準則 §21</td></tr>
+          <tr><td>霸凌</td><td>通知當事人、登錄結果</td><td>決定日起 10 個工作日內</td><td>準則 §18 III、§19 III</td></tr>
+          <tr><td>霸凌</td><td>申復</td><td>收到通知翌日起 30 日內提出；10 個工作日內開會；開會日起 30 日內決定（再調查得展延 30 日）；決定後 10 個工作日內通知並登錄</td><td>準則 §22、§23</td></tr>
+        </tbody>
+      </table></div>
+      <p>計算依民法第 120–122 條：起算日不算入；以月計者以最後一個月相當日之前一日為末日；末日遇休息日順延至次一工作日；工作日不含起算日。補班日未納入計算。</p>
+      <p>霸凌案件申訴日早於 115 年 7 月 1 日者，依準則 §28 適用新制。調查小組組成、迴避、性別比例等要求請另行檢核。本工具為管理輔助，條文以全國法規資料庫為準，正式使用前請由法務或主管機關確認。</p>
+    </div>
+  </details>
+
+  <footer class="foot">
+    <span>資料存放於 Supabase 雲端，只有被授權的帳號能存取。申訴人與被申訴人建議只用代稱登錄。</span>
+    <button type="button" class="btn small" id="importBtn" hidden>匯入本機舊資料</button>
+  </footer>
+</div>
+<div id="toast" role="status" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+var DAY=864e5;
+var KEY='complaint-tracker-v1';
+function $(s){return document.querySelector(s);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function pISO(s){var p=s.split('-').map(Number);return new Date(Date.UTC(p[0],p[1]-1,p[2]));}
+function fISO(d){return d.toISOString().slice(0,10);}
+function addD(d,n){return new Date(d.getTime()+n*DAY);}
+function todayUTC(){var n=new Date();return new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));}
+function fmt(d){var y=d.getUTCFullYear()-1911;var m=String(d.getUTCMonth()+1).padStart(2,'0');var dd=String(d.getUTCDate()).padStart(2,'0');return y+'/'+m+'/'+dd+'（'+'日一二三四五六'[d.getUTCDay()]+'）';}
+function rng(a,b){var o=[];for(var d=pISO(a);d<=pISO(b);d=addD(d,1))o.push(fISO(d));return o;}
+
+var DEFAULT_HOL=['2026-01-01'].concat(rng('2026-02-14','2026-02-22'),['2026-02-27'],rng('2026-04-03','2026-04-06'),['2026-05-01','2026-06-19','2026-09-25','2026-10-09','2027-01-01']).join('\n');
+var DEFAULT_SET={sh2:7,sh3:30,sh4:10,trk:30,remind:3,holidays:DEFAULT_HOL};
+var CHANNELS=['申訴專線／電話','電子郵件','書面（信件、申訴書）','當面口述','意見箱','主管或人資轉報','其他'];
+
+var asOf=todayUTC();
+var state={settings:Object.assign({},DEFAULT_SET),cases:[]};
+var selected=null;
+var filterT='';
+var diffs={};
+var delArm=false;
+var toastT=null;
+
+/* ---------- 日期規則 ---------- */
+var holSet=new Set();
+function rebuildHol(){holSet=new Set((state.settings.holidays||'').match(/\d{4}-\d{2}-\d{2}/g)||[]);}
+function isOff(d){var w=d.getUTCDay();return w===0||w===6||holSet.has(fISO(d));}
+function roll(d){while(isOff(d))d=addD(d,1);return d;}
+function wdEnd(base,n){var d=base;var c=0;while(c<n){d=addD(d,1);if(!isOff(d))c++;}return d;}
+function daysEnd(base,n){return roll(addD(base,n));}
+function monthsEnd(s,n){
+  var c=addD(s,1);var m=c.getUTCMonth()+n;var ty=c.getUTCFullYear()+Math.floor(m/12);var tm=((m%12)+12)%12;
+  var dim=new Date(Date.UTC(ty,tm+1,0)).getUTCDate();var day=c.getUTCDate();
+  var end=day>dim?new Date(Date.UTC(ty,tm,dim)):addD(new Date(Date.UTC(ty,tm,day)),-1);
+  return roll(end);
+}
+function remindDays(){return +state.settings.remind||3;}
+function minD(a,b){return a.getTime()<=b.getTime()?a:b;}
+function maxD(a,b){return a.getTime()>=b.getTime()?a:b;}
+
+/* ---------- 階段定義 ---------- */
+function defs(cs){
+  var S=state.settings;var tier=+cs.tier;var out=[];
+  if(cs.type==='SH'){
+    out.push({k:'s1',name:'受理申訴、採取立即有效措施並通知地方主管機關',kind:'law',basis:'工作場所性騷擾防治措施準則 §6、§11',rule:'接獲申訴時立即辦理（申訴日當日起）',
+      calc:function(c){return c.A;}});
+    out.push({k:'s2',name:tier===100?'組成調查小組並完成迴避確認':'指派調查人員並完成迴避確認',kind:'internal',basis:'準則 §13、§15（法規未訂期限）',rule:'內部目標：自申訴日起 '+S.sh2+' 日內',
+      calc:function(c){return addD(c.eff('s1'),+S.sh2);}});
+    out.push({k:'s3',name:'完成調查並移送申訴處理單位審議',kind:'internal',basis:'準則 §14（法規未訂期限）',rule:'內部目標：小組成立後 '+S.sh3+' 日內，且須為結案期限預留 10 日',
+      calc:function(c){return maxD(minD(addD(c.eff('s2'),+S.sh3),addD(c.shDL,-10)),c.eff('s2'));}});
+    out.push({k:'s4',name:'審議並作成附理由之決議',kind:'internal',basis:'準則 §17（法規未訂期限）',rule:'內部目標：調查完成後 '+S.sh4+' 日內，不得超過結案期限',
+      calc:function(c){return maxD(minD(addD(c.eff('s3'),+S.sh4),c.shDL),c.eff('s3'));}});
+    out.push({k:'s5',name:'書面通知申訴人及被申訴人並結案',kind:'law',basis:'準則 §17、§18 I',rule:'接獲申訴翌日起 2 個月內結案；必要時延長 1 個月並通知當事人',
+      calc:function(c){return c.shDL;}});
+    out.push({k:'s6',name:'調查屬實者，通知地方主管機關處理結果',kind:'internal',basis:'準則 §19（法規未訂期限）',rule:'內部目標：結案後 7 日內',
+      calc:function(c){return addD(c.eff('s5'),7);}});
+    out.push({k:'s7',name:'追蹤、考核懲戒措施執行',kind:'internal',basis:'準則 §20（法規未訂期限）',rule:'內部目標：結案後 '+S.trk+' 日內',
+      calc:function(c){return addD(c.eff('s5'),+S.trk);}});
+    return out;
+  }
+  var ref=tier===100?'':'（得參照）';
+  out.push({k:'b1',name:'受理申訴、採取立即有效措施',kind:'law',basis:'職場霸凌防治措施準則 §7',rule:'接獲申訴時立即辦理（申訴日當日起）',
+    calc:function(c){return c.A;}});
+  if(tier>=30){
+    out.push({k:'b2',name:'決定是否受理並書面通知申訴人',kind:'law',basis:'準則 §10 I',rule:'接獲申訴之日起 10 個工作日內',
+      calc:function(c){return wdEnd(c.A,10);}});
+    out.push({k:'b3',name:'登錄中央主管機關系統並通知申訴人',kind:'law',basis:'準則 §11',rule:'受理翌日起 7 個工作日內',
+      calc:function(c){return wdEnd(c.eff('b2'),7);}});
+  }
+  if(tier===100){
+    out.push({k:'b4',name:'選任並組成調查小組',kind:'law',basis:'準則 §14 I',rule:'受理之日起 15 個工作日內',
+      calc:function(c){return wdEnd(c.eff('b2'),15);}});
+    out.push({k:'b5',name:'完成調查報告',kind:'law',basis:'準則 §17 I',rule:'小組成立翌日起 2 個月內；必要時延長 1 個月並通知當事人；協調期間不計入',
+      calc:function(c){return roll(addD(monthsEnd(c.eff('b4'),2+(cs.ext?1:0)),+cs.coord||0));}});
+    out.push({k:'b6',name:'申訴處理單位審議並作成成立與否之決定',kind:'law',basis:'準則 §18 I、II',rule:'調查報告完成之日起 1 個月內',
+      calc:function(c){return monthsEnd(c.eff('b5'),1);}});
+  }else{
+    var mo=tier===30?4:3;
+    out.push({k:'b6',name:'調查並作成成立與否之決定',kind:'law',basis:'準則 §21'+(tier===30?' II':' I'),rule:'接獲申訴翌日起 '+mo+' 個月內；得延長 1 個月',
+      calc:function(c){return monthsEnd(c.A,mo+(cs.ext?1:0));}});
+  }
+  out.push({k:'b7',name:'書面通知當事人（載明事實、理由及申復方法）',kind:'law',basis:'準則 §18 III'+ref,rule:'決定之日起 10 個工作日內',
+    calc:function(c){return wdEnd(c.eff('b6'),10);}});
+  if(tier===100){
+    out.push({k:'b8',name:'登錄決定結果',kind:'law',basis:'準則 §19 III',rule:'決定作成之日起 10 個工作日內',
+      calc:function(c){return wdEnd(c.eff('b6'),10);}});
+  }
+  out.push({k:'b9',name:'當事人申復期間（實際完成日填提出申復日）',kind:'party',basis:'準則 §22 I'+ref,rule:'收到書面通知翌日起 30 日內，以一次為限；未申復則期間屆滿即結束',
+    calc:function(c){return daysEnd(c.eff('b7'),30);}});
+  out.push({k:'b10',name:'召開申復審議會議',kind:'law',basis:'準則 §22 II'+ref,rule:'接獲申復後 10 個工作日內',
+    calc:function(c){return c.act.b9?wdEnd(c.act.b9,10):null;}});
+  out.push({k:'b11',name:'作成申復決定',kind:'law',basis:'準則 §23 I'+ref,rule:'會議召開日起 30 日內；再行調查者得展延 30 日',
+    calc:function(c){var m=c.eff('b10');return m?daysEnd(m,30+(cs.reinv?30:0)):null;}});
+  out.push({k:'b12',name:'通知申復人及相對人並登錄',kind:'law',basis:'準則 §23 II'+ref,rule:'申復決定之日起 10 個工作日內',
+    calc:function(c){var m=c.eff('b11');return m?wdEnd(m,10):null;}});
+  return out;
+}
+
+/* ---------- 計算 ---------- */
+function compute(cs){
+  var A=pISO(cs.complaintDate);
+  var ds=defs(cs);var exp={};var act={};
+  ds.forEach(function(d){act[d.k]=cs.actuals&&cs.actuals[d.k]?pISO(cs.actuals[d.k]):null;});
+  var c={A:A,act:act,eff:function(k){return act[k]||exp[k]||null;},shDL:monthsEnd(A,2+(cs.ext?1:0))};
+  var rows=[];var lapsedB9=false;
+  ds.forEach(function(d){
+    var e=d.calc(c);exp[d.k]=e;
+    var r={k:d.k,name:d.name,kind:d.kind,basis:d.basis,rule:d.rule,exp:e,act:act[d.k],st:'',cur:false,delta:null};
+    if(e===null&&!act[d.k]){
+      r.st=lapsedB9?'na':'wait';
+    }else if(act[d.k]){
+      r.st=(d.kind==='party'||!e||act[d.k].getTime()<=e.getTime())?'done':'late';
+      if(e)r.delta=Math.round((e-act[d.k])/DAY);
+    }else if(d.kind==='party'&&e.getTime()<asOf.getTime()){
+      r.st='lapsed';lapsedB9=true;
+    }else{
+      r.delta=Math.round((e-asOf)/DAY);
+      r.st=r.delta<0?'overdue':(r.delta<=remindDays()?'soon':'pending');
+    }
+    rows.push(r);
+  });
+  var cur=rows.filter(function(r){return r.st==='overdue'||r.st==='soon'||r.st==='pending';})[0];
+  if(cur)cur.cur=true;
+  var any=function(s){return rows.some(function(r){return r.st===s;});};
+  var status=any('overdue')?'overdue':any('soon')?'soon':cur?'active':'closed';
+  return {rows:rows,cur:cur,status:status};
+}
+
+/* ---------- Supabase 雲端儲存 ---------- */
+var SB_URL='https://nshoqlxprflesuhpgwpp.supabase.co';
+var SB_KEY='sb_publishable_WmM9q7IwtZCO2wBovXXL2w_y3ICPWur'; // 公開金鑰，權限由資料庫的 RLS 控管
+var sb=null;try{sb=window.supabase.createClient(SB_URL,SB_KEY);}catch(e){}
+var role='none';
+var canEdit=false;
+var SET_KEYS=['holidays','sh2','sh3','sh4','trk','remind'];
+var ROLE_LABEL={handler:'承辦人（可編輯）',supervisor:'主管（唯讀）'};
+
+function uuid(){return window.crypto&&crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&3|8)).toString(16);});}
+function toRow(cs){
+  return {id:cs.id,no:cs.no,type:cs.type,tier:+cs.tier,complaint_date:cs.complaintDate,department:cs.department||'',complainant:cs.complainant||'',
+    respondent:cs.respondent||'',channel:cs.channel||'',description:cs.description||'',ext:!!cs.ext,coord:+cs.coord||0,reinv:!!cs.reinv,actuals:cs.actuals||{}};
+}
+function fromRow(r){
+  return {id:r.id,no:r.no,type:r.type,tier:r.tier,complaintDate:r.complaint_date,department:r.department,complainant:r.complainant,
+    respondent:r.respondent,channel:r.channel,description:r.description,ext:r.ext,coord:r.coord,reinv:r.reinv,actuals:r.actuals||{}};
+}
+function pickFirst(){
+  var s=state.cases.map(function(c){return {c:c,r:compute(c)};});
+  s.sort(function(a,b){return ORDER[a.r.status]-ORDER[b.r.status];});
+  return s[0]?s[0].c.id:null;
+}
+// 寫入失敗時提示並重新載入雲端資料，避免畫面與資料庫不一致
+function failed(res){
+  if(res&&res.error){toast('儲存失敗：'+res.error.message);loadAll().then(function(){renderAll();});return true;}
+  return false;
+}
+function saveCase(cs){return sb.from('cases').upsert(toRow(cs)).then(failed);}
+function deleteCase(id){return sb.from('cases').delete().eq('id',id).then(failed);}
+function saveSettings(){var o={};SET_KEYS.forEach(function(k){o[k]=state.settings[k];});return sb.from('settings').update(o).eq('id',1).then(failed);}
+function loadAll(){
+  return Promise.all([
+    sb.from('cases').select('*').order('complaint_date',{ascending:false}),
+    sb.from('settings').select('*').eq('id',1).maybeSingle()
+  ]).then(function(res){
+    if(res[0].error)throw res[0].error;
+    if(res[1].error)throw res[1].error;
+    state.cases=res[0].data.map(fromRow);
+    state.settings=Object.assign({},DEFAULT_SET,res[1].data||{});
+    if(!state.cases.some(function(c){return c.id===selected;}))selected=pickFirst();
+  });
+}
+function nextNo(type,d){
+  var pre=(type==='SH'?'性騷':'霸凌')+'-'+(+d.slice(0,4)-1911)+'-',max=0;
+  state.cases.forEach(function(c){if(c.no.indexOf(pre)===0){var n=parseInt(c.no.slice(pre.length),10);if(n>max)max=n;}});
+  return pre+String(max+1).padStart(3,'0');
+}
+
+/* ---------- 匯入這個瀏覽器舊的本機資料 ---------- */
+function legacyData(){
+  try{var o=JSON.parse(localStorage.getItem(KEY));return o&&o.cases&&o.cases.length?o:null;}catch(e){return null;}
+}
+function importLegacy(){
+  var o=legacyData();
+  if(!o){toast('這個瀏覽器沒有舊的本機案件資料');return;}
+  var have={};state.cases.forEach(function(c){have[c.no]=1;});
+  var todo=o.cases.filter(function(c){return !have[c.no];});
+  if(!todo.length){toast('本機的 '+o.cases.length+' 筆案號都已在雲端，沒有需要匯入的');return;}
+  if(!confirm('找到 '+todo.length+' 筆本機案件，要上傳到雲端嗎？\n案號已存在的會略過。若其中包含示範資料，也會一併上傳。'))return;
+  var rows=todo.map(function(c){return toRow(Object.assign({},c,{id:uuid()}));});
+  sb.from('cases').insert(rows).then(function(res){
+    if(res.error){toast('匯入失敗：'+res.error.message);return;}
+    loadAll().then(function(){renderAll();toast('已匯入 '+rows.length+' 筆案件');});
+  });
+}
+
+function toast(msg){
+  var t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){t.hidden=true;},3200);
+}
+
+/* ---------- 變更與連動 ---------- */
+function snap(cs){var m={};compute(cs).rows.forEach(function(r){m[r.k]=r.exp?fISO(r.exp):'';});return m;}
+function mutate(cs,fn){
+  var before=snap(cs);fn();var after=snap(cs);var d={};var n=0;
+  Object.keys(after).forEach(function(k){if(before[k]!==undefined&&before[k]!==after[k]){d[k]={from:before[k],to:after[k]};n++;}});
+  diffs[cs.id]=d;delArm=false;saveCase(cs);renderAll();
+  toast(n?'已更新後續 '+n+' 個階段的預計完成日':'已儲存');
+}
+function cur(){return state.cases.filter(function(c){return c.id===selected;})[0];}
+
+/* ---------- 畫面 ---------- */
+var ST_LABEL={done:'已完成',late:'逾期完成',overdue:'已逾期',soon:'即將到期',pending:'未開始',wait:'待申復才啟動',na:'不適用',lapsed:'期限屆滿，未申復',active:'進行中',closed:'已結案'};
+function stLabel(r){
+  if(r.cur&&r.st==='pending')return r.kind==='party'?'申復期間':'進行中';
+  if(r.st==='overdue')return r.kind==='internal'?'逾內部目標':'逾法定期限';
+  if(r.st==='late')return r.kind==='internal'?'逾內部目標完成':'逾法定期限完成';
+  return ST_LABEL[r.st];
+}
+function stKey(r){return r.st==='overdue'&&r.kind==='internal'?'overdue-int':(r.cur&&r.st==='pending'?'active':r.st);}
+function rel(d){return d===0?'今天到期':d>0?'剩 '+d+' 日':'逾 '+(-d)+' 日';}
+var TYPE_NAME={SH:'職場性騷擾',BL:'職場霸凌'};
+var TIER_NAME={'100':'100 人以上','30':'30–99 人','0':'未達 30 人'};
+
+function renderSummary(){
+  var o=0,s=0,a=0,c=0;
+  state.cases.forEach(function(cs){var st=compute(cs).status;if(st==='overdue')o++;else if(st==='soon')s++;else if(st==='active')a++;else c++;});
+  $('#sum').innerHTML='<div class="bad"><b>'+o+'</b><span>已逾期案件</span></div><div class="warn"><b>'+s+'</b><span>'+remindDays()+' 日內到期</span></div><div><b>'+a+'</b><span>進行中</span></div><div class="ok"><b>'+c+'</b><span>已結案</span></div>';
+}
+var ORDER={overdue:0,soon:1,active:2,closed:3};
+function renderList(){
+  Array.prototype.forEach.call(document.querySelectorAll('#filters .fbtn'),function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-f')===filterT));});
+  var items=state.cases.filter(function(cs){return !filterT||cs.type===filterT;}).map(function(cs){return {cs:cs,r:compute(cs)};});
+  items.sort(function(x,y){
+    if(ORDER[x.r.status]!==ORDER[y.r.status])return ORDER[x.r.status]-ORDER[y.r.status];
+    var a=x.r.cur&&x.r.cur.exp?x.r.cur.exp.getTime():9e15;var b=y.r.cur&&y.r.cur.exp?y.r.cur.exp.getTime():9e15;return a-b;
+  });
+  if(!items.length){$('#cases').innerHTML='<li class="empty">'+(filterT?'這個類別目前沒有案件。':'目前沒有案件。按「新增案件」開始登錄。')+'</li>';return;}
+  $('#cases').innerHTML=items.map(function(it){
+    var cs=it.cs,r=it.r,cu=r.cur;
+    var st=r.status;
+    var line2=cu?esc(cu.name):'全部階段已完成';
+    var line3=cu&&cu.exp?'預計 '+fmt(cu.exp)+' · '+rel(cu.delta):'—';
+    var line4=[cs.department,(cs.complainant||'')+' → '+(cs.respondent||''),cs.channel].filter(Boolean).map(esc).join(' · ');
+    return '<li><button type="button" class="case" data-t="'+cs.type+'" data-id="'+esc(cs.id)+'" aria-current="'+(cs.id===selected)+'">'
+      +'<span class="r1"><span class="no">'+esc(cs.no)+'</span><span class="chip" data-t="'+cs.type+'">'+TYPE_NAME[cs.type]+'</span><span class="pill" data-st="'+st+'">'+ST_LABEL[st]+'</span></span>'
+      +'<span class="r2">'+line2+'</span><span class="r3"><span class="num">'+line3+'</span><span>申訴日 '+fmt(pISO(cs.complaintDate)).slice(0,9)+'</span></span>'
+      +'<span class="r4">'+line4+'</span></button></li>';
+  }).join('');
+}
+function stepHTML(cs,r){
+  var id='act-'+cs.id+'-'+r.k;
+  var dis=r.st==='wait'||r.st==='na';
+  var relTxt='';var relSt=r.st;
+  if(r.act&&r.exp&&r.kind!=='party'){relTxt=r.delta>=0?(r.delta===0?'當日完成':'提前 '+r.delta+' 日完成'):'逾 '+(-r.delta)+' 日完成';}
+  else if(!r.act&&r.delta!==null&&r.st!=='lapsed'){relTxt=rel(r.delta);}
+  else if(r.st==='lapsed'){relTxt='申復期限已屆滿';}
+  var df=diffs[cs.id]&&diffs[cs.id][r.k];
+  var chg=df?'<span class="chg">↻ 預計日已由 '+(df.from?fmt(pISO(df.from)).slice(0,9):'—')+' 更新為 '+(df.to?fmt(pISO(df.to)).slice(0,9):'—')+'</span>':'';
+  var kindTxt=r.kind==='law'?'法定期限':r.kind==='internal'?'內部目標（非法定）':'當事人權利期間';
+  return '<li class="step'+(r.cur?' cur':'')+'" data-st="'+r.st+'"><span class="dot" aria-hidden="true"></span>'
+    +'<div class="step-head"><h4>'+esc(r.name)+'</h4><span class="pill" data-st="'+stKey(r)+'">'+stLabel(r)+'</span></div>'
+    +'<p class="meta"><span class="kind" data-k="'+r.kind+'">'+kindTxt+'</span>'+esc(r.basis)+'</p>'
+    +'<p class="rule">'+esc(r.rule)+'</p>'
+    +'<div class="dates"><div class="dcell"><span class="lbl">預計完成日</span><strong class="dv">'+(r.exp?fmt(r.exp):'待上一階段啟動')+'</strong><span class="rel" data-st="'+relSt+'">'+esc(relTxt)+'</span>'+chg+'</div>'
+    +'<div class="dcell"><label class="lbl" for="'+id+'">實際完成日</label><div class="act-row"><input type="date" id="'+id+'" data-act="'+r.k+'" min="'+cs.complaintDate+'" value="'+(r.act?fISO(r.act):'')+'"'+(dis?' disabled':'')+'>'
+    +(r.act?'<button type="button" class="btn small" data-clear="'+r.k+'">清除</button>':'')+'</div></div></div></li>';
+}
+function whoText(cs){
+  return [TIER_NAME[cs.tier],cs.department,(cs.complainant||'')+' 對 '+(cs.respondent||''),cs.channel?'管道：'+cs.channel:''].filter(Boolean).join(' · ');
+}
+function channelOpts(v){
+  var list=CHANNELS.slice();if(v&&list.indexOf(v)<0)list.push(v);
+  return '<option value="">未填</option>'+list.map(function(c){return '<option'+(c===v?' selected':'')+'>'+esc(c)+'</option>';}).join('');
+}
+
+/* ---------- 提醒 ---------- */
+function remindItems(){
+  var out=[];
+  state.cases.forEach(function(cs){compute(cs).rows.forEach(function(r){if((r.st==='overdue'||r.st==='soon')&&r.exp)out.push({cs:cs,r:r});});});
+  out.sort(function(a,b){
+    var ao=a.r.st==='overdue'?0:1,bo=b.r.st==='overdue'?0:1;
+    return ao!==bo?ao-bo:a.r.exp.getTime()-b.r.exp.getTime();
+  });
+  return out;
+}
+function renderRemind(){
+  var it=remindItems();
+  var od=it.filter(function(x){return x.r.st==='overdue';}).length;
+  $('#remindCount').textContent=it.length?(od?od+' 項逾期、':'')+(it.length-od)+' 項即將到期':'無待處理';
+  $('#remindDays').value=String(remindDays());
+  document.title=(it.length?'('+it.length+') ':'')+'申訴案件管理系統';
+  if(!it.length){$('#rlist').innerHTML='<li class="empty">目前沒有逾期或 '+remindDays()+' 日內到期的項目。</li>';return;}
+  $('#rlist').innerHTML=it.map(function(x){
+    var r=x.r;
+    return '<li><button type="button" class="ritem" data-id="'+esc(x.cs.id)+'" data-t="'+x.cs.type+'" data-st="'+r.st+'">'
+      +'<span class="chip" data-t="'+x.cs.type+'">'+TYPE_NAME[x.cs.type]+'</span>'
+      +'<span class="rs"><span class="rn">'+esc(x.cs.no)+'</span>　'+esc(r.name)+'<br><span class="rel">'+(r.kind==='law'?'法定期限':'內部目標')+(x.cs.department?' · '+esc(x.cs.department):'')+'</span></span>'
+      +'<span class="rd">'+fmt(r.exp).slice(0,9)+'<br>'+rel(r.delta)+'</span></button></li>';
+  }).join('');
+}
+
+/* ---------- 匯出行事曆（.ics，只含案號與階段，不含當事人資料） ---------- */
+function icsEsc(s){return String(s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');}
+function icsFold(line){
+  var out=[];while(line.length>20){out.push(line.slice(0,20));line=' '+line.slice(20);}
+  out.push(line);return out.join('\r\n');
+}
+function ymdCompact(d){return fISO(d).replace(/-/g,'');}
+function buildICS(){
+  var n=remindDays();var now=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+Z$/,'Z');
+  var L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//complaint-tracker//TW','CALSCALE:GREGORIAN','X-WR-CALNAME:申訴案件期限'];
+  var count=0;
+  state.cases.forEach(function(cs){
+    compute(cs).rows.forEach(function(r){
+      if(!r.exp||r.act||r.st==='wait'||r.st==='na'||r.st==='lapsed')return;
+      count++;
+      L.push('BEGIN:VEVENT','UID:'+cs.id+'-'+r.k+'@complaint-tracker','DTSTAMP:'+now,
+        'DTSTART;VALUE=DATE:'+ymdCompact(r.exp),'DTEND;VALUE=DATE:'+ymdCompact(addD(r.exp,1)),
+        'SUMMARY:'+icsEsc('【'+TYPE_NAME[cs.type]+'】'+cs.no+' '+r.name),
+        'DESCRIPTION:'+icsEsc((r.kind==='law'?'法定期限：':'內部目標：')+r.rule+'（'+r.basis+'）'));
+      [n,1].filter(function(v,i,a){return a.indexOf(v)===i;}).forEach(function(d){
+        L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEsc(cs.no+' '+r.name+'即將到期'),'TRIGGER:-P'+d+'DT15H','END:VALARM');
+      });
+      L.push('END:VEVENT');
+    });
+  });
+  L.push('END:VCALENDAR');
+  return {text:L.map(icsFold).join('\r\n')+'\r\n',count:count};
+}
+function downloadICS(){
+  var o=buildICS();
+  if(!o.count){toast('目前沒有尚未完成的階段可匯出');return;}
+  var url=URL.createObjectURL(new Blob([o.text],{type:'text/calendar;charset=utf-8'}));
+  var a=document.createElement('a');a.href=url;a.download='complaint-deadlines.ics';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  toast('已匯出 '+o.count+' 筆期限，請匯入行事曆');
+}
+
+function renderDetail(){
+  var cs=cur();var el=$('#detail');
+  if(!cs){el.removeAttribute('data-t');el.innerHTML='<div class="empty">請從左側選擇案件，或新增一件。</div>';return;}
+  var r=compute(cs);var cu=r.cur;
+  var info='<label class="field" for="inf-dept">部門<input type="text" id="inf-dept" data-info="department" maxlength="30" value="'+esc(cs.department)+'"></label>'
+    +'<label class="field" for="inf-a">申訴人（建議用代稱）<input type="text" id="inf-a" data-info="complainant" maxlength="20" value="'+esc(cs.complainant)+'"></label>'
+    +'<label class="field" for="inf-b">被申訴人（建議用代稱）<input type="text" id="inf-b" data-info="respondent" maxlength="20" value="'+esc(cs.respondent)+'"></label>'
+    +'<label class="field" for="inf-ch">申訴管道<select id="inf-ch" data-info="channel">'+channelOpts(cs.channel)+'</select></label>'
+    +'<label class="field wide" for="inf-desc">發生情況<textarea id="inf-desc" data-info="description" rows="4" maxlength="1000">'+esc(cs.description)+'</textarea></label>';
+  var cfg='<label class="field" for="cfg-date">申訴日期（接獲申訴日）<input type="date" id="cfg-date" value="'+cs.complaintDate+'"></label>'
+    +'<label class="field" for="cfg-tier">僱用人數<select id="cfg-tier">'+['100','30','0'].map(function(t){return '<option value="'+t+'"'+(+cs.tier===+t?' selected':'')+'>'+TIER_NAME[t]+'</option>';}).join('')+'</select></label>'
+    +'<label class="check" for="cfg-ext"><input type="checkbox" id="cfg-ext"'+(cs.ext?' checked':'')+'><span>已延長 1 個月並通知當事人</span></label>';
+  if(cs.type==='BL'&&+cs.tier===100)cfg+='<label class="field" for="cfg-coord">協調期間（日，不計入調查期限）<input type="number" id="cfg-coord" min="0" max="365" value="'+(+cs.coord||0)+'"></label>';
+  if(cs.type==='BL')cfg+='<label class="check" for="cfg-reinv"><input type="checkbox" id="cfg-reinv"'+(cs.reinv?' checked':'')+'><span>申復需再行調查，展延 30 日</span></label>';
+  var notice=(cs.type==='BL'&&cs.complaintDate<'2026-07-01')?'<p class="notice">申訴日早於 115 年 7 月 1 日。依準則 §28 適用新制終結，施行前已進行的程序效力不受影響，請另行檢核。</p>':'';
+  var now=cu?'<div class="now"><div><span class="lbl">目前階段</span><br><b>'+esc(cu.name)+'</b></div><div><span class="lbl">預計完成日</span><br><b class="num">'+fmt(cu.exp)+'</b></div><div><span class="lbl">距今</span><br><b class="num">'+rel(cu.delta)+'</b></div></div>'
+    :'<div class="now"><div><span class="lbl">案件狀態</span><br><b>所有適用階段皆已完成</b></div></div>';
+  el.setAttribute('data-t',cs.type);
+  el.innerHTML='<div class="dhead"><div class="dtitle"><div><h2>'+esc(cs.no)+' <span class="chip" data-t="'+cs.type+'">'+TYPE_NAME[cs.type]+'</span></h2><p class="who" id="who">'+esc(whoText(cs))+'</p></div>'
+    +'<div><button type="button" class="btn small'+(delArm?' danger':'')+'" id="del">'+(delArm?'確定刪除？再按一次':'刪除案件')+'</button></div></div>'
+    +'<div class="cfg info">'+info+'</div>'
+    +'<div class="cfg">'+cfg+'</div>'+notice+'</div>'+now
+    +'<ol class="timeline">'+r.rows.map(function(x){return stepHTML(cs,x);}).join('')+'</ol>';
+  if(!canEdit){
+    Array.prototype.forEach.call(el.querySelectorAll('input,select,textarea'),function(x){x.disabled=true;});
+    Array.prototype.forEach.call(el.querySelectorAll('#del,[data-clear]'),function(x){x.hidden=true;});
+  }
+}
+function renderSettings(){
+  var S=state.settings;$('#holidays').value=S.holidays;
+  ['sh2','sh3','sh4','trk'].forEach(function(k){$('#i-'+k).value=S[k];});
+}
+function renderAll(){rebuildHol();renderSummary();renderRemind();renderList();renderDetail();}
+
+/* ---------- 事件 ---------- */
+$('#cases').addEventListener('click',function(e){
+  var b=e.target.closest('.case');if(!b)return;
+  selected=b.getAttribute('data-id');delArm=false;renderList();renderDetail();
+  if(window.innerWidth<920)$('#detail').scrollIntoView({behavior:'smooth',block:'start'});
+});
+$('#remind').addEventListener('click',function(e){
+  var b=e.target.closest('.ritem');if(!b)return;
+  selected=b.getAttribute('data-id');filterT='';delArm=false;renderList();renderDetail();
+  $('#detail').scrollIntoView({behavior:'smooth',block:'start'});
+});
+$('#remindDays').addEventListener('change',function(){state.settings.remind=+this.value;diffs={};saveSettings();renderAll();toast('已改為提前 '+this.value+' 日提醒');});
+$('#icsBtn').addEventListener('click',downloadICS);
+$('#filters').addEventListener('click',function(e){
+  var b=e.target.closest('.fbtn');if(!b)return;
+  filterT=b.getAttribute('data-f');renderList();
+});
+$('#n-ch').innerHTML=channelOpts('');
+$('#detail').addEventListener('change',function(e){
+  var cs=cur();if(!cs)return;var t=e.target;
+  if(t.hasAttribute('data-info')){
+    // 案件資料不影響期限計算；只更新文字，不重繪整個詳情，避免打斷輸入焦點
+    cs[t.getAttribute('data-info')]=t.value.trim();saveCase(cs);
+    $('#who').textContent=whoText(cs);renderList();renderRemind();toast('已儲存');return;
+  }
+  if(t.hasAttribute('data-act')){var k=t.getAttribute('data-act');mutate(cs,function(){if(t.value)cs.actuals[k]=t.value;else delete cs.actuals[k];});return;}
+  if(t.id==='cfg-date'&&t.value)mutate(cs,function(){cs.complaintDate=t.value;});
+  else if(t.id==='cfg-tier')mutate(cs,function(){cs.tier=+t.value;});
+  else if(t.id==='cfg-ext')mutate(cs,function(){cs.ext=t.checked;});
+  else if(t.id==='cfg-reinv')mutate(cs,function(){cs.reinv=t.checked;});
+  else if(t.id==='cfg-coord')mutate(cs,function(){cs.coord=Math.max(0,+t.value||0);});
+});
+$('#detail').addEventListener('click',function(e){
+  var cs=cur();if(!cs)return;
+  var c=e.target.closest('[data-clear]');
+  if(c){var k=c.getAttribute('data-clear');mutate(cs,function(){delete cs.actuals[k];});return;}
+  if(e.target.id==='del'){
+    if(!delArm){delArm=true;renderDetail();return;}
+    state.cases=state.cases.filter(function(x){return x.id!==cs.id;});selected=pickFirst();delArm=false;deleteCase(cs.id);renderAll();toast('已刪除案件');
+  }
+});
+$('#toggleNew').addEventListener('click',function(){
+  var f=$('#newform');f.hidden=!f.hidden;this.setAttribute('aria-expanded',String(!f.hidden));
+  if(!f.hidden)$('#n-date').value=fISO(asOf);
+});
+$('#newform').addEventListener('submit',function(e){
+  e.preventDefault();
+  var type=$('#n-type').value;var d=$('#n-date').value;if(!d)return;
+  var id=uuid();
+  var nc={id:id,no:nextNo(type,d),type:type,tier:+$('#n-tier').value,complaintDate:d,
+    complainant:$('#n-a').value||'申訴人',respondent:$('#n-b').value||'被申訴人',
+    department:$('#n-dept').value.trim(),channel:$('#n-ch').value,description:$('#n-desc').value.trim(),
+    ext:false,coord:0,reinv:false,actuals:{}};
+  state.cases.push(nc);
+  $('#n-dept').value='';$('#n-desc').value='';$('#n-ch').value='';filterT='';
+  selected=id;$('#newform').hidden=true;$('#toggleNew').setAttribute('aria-expanded','false');saveCase(nc);renderAll();toast('已建立案件，請登錄各階段實際完成日');
+});
+$('#asof').addEventListener('change',function(){if(this.value){asOf=pISO(this.value);diffs={};renderAll();}});
+$('#holidays').addEventListener('change',function(){state.settings.holidays=this.value;diffs={};saveSettings();renderAll();toast('已依新假日重新計算所有案件');});
+['sh2','sh3','sh4','trk'].forEach(function(k){
+  $('#i-'+k).addEventListener('change',function(){var v=Math.max(0,+this.value||0);state.settings[k]=v;diffs={};saveSettings();renderAll();toast('已重新計算內部目標日期');});
+});
+$('#importBtn').addEventListener('click',importLegacy);
+
+$('#asof').value=fISO(asOf);
+
+/* ---------- 登入與權限 ---------- */
+function gate(mode,msg){
+  document.body.setAttribute('data-auth',mode);
+  $('#gateMsg').textContent=msg||'';
+  $('#loginForm').hidden=mode!=='out';
+  $('#gateOut').hidden=!(mode==='blocked'||mode==='error');
+}
+function applyRole(email){
+  canEdit=role==='handler';
+  $('#userInfo').textContent=email+'・'+(ROLE_LABEL[role]||role);
+  $('#toggleNew').hidden=!canEdit;
+  $('#importBtn').hidden=!canEdit;
+  ['remindDays','holidays','i-sh2','i-sh3','i-sh4','i-trk'].forEach(function(id){$('#'+id).disabled=!canEdit;});
+}
+function clearScreen(){
+  state.cases=[];selected=null;role='none';canEdit=false;
+  ['#cases','#detail','#rlist','#sum'].forEach(function(q){$(q).innerHTML='';});
+  document.title='申訴案件管理系統';
+}
+function boot(session){
+  gate('loading','載入中…');
+  var email=session.user.email||'';
+  sb.from('profiles').select('role').eq('id',session.user.id).maybeSingle().then(function(r){
+    if(r.error)throw r.error;
+    role=(r.data&&r.data.role)||'none';
+    if(role==='none'){gate('blocked','此帳號（'+email+'）尚未取得使用權限，請聯絡管理者開通。');return;}
+    return loadAll().then(function(){
+      applyRole(email);renderSettings();renderAll();gate('in');
+    });
+  }).catch(function(err){gate('error','載入失敗：'+(err.message||err));});
+}
+function signOut(){return sb.auth.signOut().then(function(){clearScreen();gate('out','已登出');});}
+$('#loginForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  var btn=$('#lgBtn');btn.disabled=true;
+  sb.auth.signInWithPassword({email:$('#lg-email').value.trim(),password:$('#lg-pw').value}).then(function(res){
+    btn.disabled=false;
+    if(res.error){$('#gateMsg').textContent='登入失敗，請確認帳號與密碼。';return;}
+    $('#lg-pw').value='';boot(res.data.session);
+  });
+});
+$('#gateOut').addEventListener('click',signOut);
+$('#logoutBtn').addEventListener('click',signOut);
+document.addEventListener('visibilitychange',function(){
+  // 切回此分頁時同步雲端資料；正在輸入時不更新，避免打斷
+  if(document.visibilityState!=='visible'||document.body.getAttribute('data-auth')!=='in')return;
+  var a=document.activeElement;if(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))return;
+  loadAll().then(function(){renderAll();});
+});
+if(!sb){gate('error','無法載入 Supabase 程式庫，請確認網路連線後重新整理。');}
+else{
+  sb.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_OUT'){clearScreen();gate('out');}});
+  sb.auth.getSession().then(function(r){if(r.data&&r.data.session)boot(r.data.session);else gate('out');});
+}
+})();
+</script>
+
+</body>
+</html>
