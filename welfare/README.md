@@ -2,7 +2,7 @@
 
 企業內部「員工職福特約廠商優惠查詢與管理平台」。以**優惠生命週期**為核心：建立 → 送審 → 發布 → 即將到期 → 續約 → 自動下架 → 新版本。
 
-技術：Python 3 + Flask + SQLite（單一檔案資料庫，免額外服務）+ openpyxl。日期時間一律 Asia/Taipei（UTC+8）。
+技術：Python 3 + Flask + openpyxl。資料庫預設 SQLite（單一檔案，免額外服務）；設定環境變數 `DATABASE_URL` 即改用 PostgreSQL／Supabase。日期時間一律 Asia/Taipei（UTC+8）。
 
 ## 啟動
 
@@ -16,6 +16,13 @@ python tests/test_smoke.py   # 端到端測試
 
 預設系統管理員：`admin` / `Admin1234`（可用環境變數 `WELFARE_ADMIN_PASSWORD` 指定；首次登入強制改密碼）。
 示範帳號：`H0001`（HR）、`E0001`（員工），密碼 `Demo12345`。
+
+### 使用 Supabase（PostgreSQL）
+1. Supabase 專案 → **Connect** → 複製 **Session pooler** 連線字串（格式 `postgresql://postgres.<ref>:<密碼>@aws-0-<區域>.pooler.supabase.com:5432/postgres`）。
+2. 在執行網站的主機設定環境變數：`DATABASE_URL="<連線字串>"`（含密碼，**不要**放進程式碼或 GitHub）。
+3. 資料表已建立並啟用 RLS（不開放公開 API，僅後端連線可存取）；首次啟動會自動寫入預設角色、分類、地區與 `admin` 帳號。
+4. 備份：Supabase 平台每日備份＋系統內「立即備份」（匯出 JSON 至 `backups/`，含密碼雜湊，請限制存取）。
+5. 測試：`DATABASE_URL=... python tests/test_smoke.py`（會**清空**該資料庫 public schema，請只對測試資料庫執行）。
 
 ### 正式上線注意
 - 請放在 HTTPS 反向代理（nginx 等）之後，並設定 `WELFARE_HTTPS=1`（Session Cookie 加 Secure）；以 gunicorn 等執行 `app:app`。

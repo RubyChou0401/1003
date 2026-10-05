@@ -416,7 +416,7 @@ def stats():
            "views": one("SELECT COUNT(*) c FROM usage_events WHERE kind='view' AND at>=?"),
            "searches": one("SELECT COUNT(*) c FROM usage_events WHERE kind='search' AND at>=?")}
     top_offers = q("SELECT v.id, v.name, ven.name vn, COUNT(*) n FROM usage_events u JOIN offer_versions v ON v.id=u.version_id JOIN offers o ON o.id=v.offer_id "
-                   "JOIN vendors ven ON ven.id=o.vendor_id WHERE u.kind='view' AND u.at>=? GROUP BY v.id ORDER BY n DESC LIMIT 10", (start,))
+                   "JOIN vendors ven ON ven.id=o.vendor_id WHERE u.kind='view' AND u.at>=? GROUP BY v.id, ven.name ORDER BY n DESC LIMIT 10", (start,))
     top_vendors = q("SELECT ven.name, COUNT(*) n FROM usage_events u JOIN vendors ven ON ven.id=u.vendor_id WHERE u.kind='view' AND u.at>=? "
                     "GROUP BY ven.id ORDER BY n DESC LIMIT 10", (start,))
     top_cats = q("SELECT c.name, COUNT(*) n FROM usage_events u JOIN categories c ON c.id=u.category_id WHERE u.kind IN ('view','search') AND u.at>=? "
@@ -424,7 +424,7 @@ def stats():
     top_regs = q("SELECT r.name, COUNT(*) n FROM usage_events u JOIN regions r ON r.id=u.region_id WHERE u.kind IN ('view','search') AND u.at>=? "
                  "GROUP BY r.id ORDER BY n DESC LIMIT 8", (start,))
     combos = q("SELECT r.name rn, c.name cn, COUNT(*) n FROM usage_events u JOIN regions r ON r.id=u.region_id JOIN categories c ON c.id=u.category_id "
-               "WHERE u.kind='search' AND u.at>=? GROUP BY u.region_id, u.category_id ORDER BY n DESC LIMIT 8", (start,))
+               "WHERE u.kind='search' AND u.at>=? GROUP BY r.name, c.name ORDER BY n DESC LIMIT 8", (start,))
     kws = q("SELECT keyword, COUNT(*) n FROM usage_events WHERE kind='search' AND keyword IS NOT NULL AND at>=? GROUP BY keyword ORDER BY n DESC LIMIT 10", (start,))
     return render_template("admin/stats.html", rng=rng, tot=tot, top_offers=top_offers, top_vendors=top_vendors, top_cats=top_cats,
                            top_regs=top_regs, combos=combos, kws=kws)

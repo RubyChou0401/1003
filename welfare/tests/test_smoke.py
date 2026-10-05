@@ -13,6 +13,12 @@ os.environ["WELFARE_NO_THREAD"] = "1"
 os.environ["WELFARE_SECRET"] = "test"
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+if os.environ.get("DATABASE_URL"):  # PostgreSQL 測試：先清空 schema
+    import psycopg2
+    _c = psycopg2.connect(os.environ["DATABASE_URL"]); _c.autocommit = True
+    _c.cursor().execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public")
+    _c.close()
+
 import openpyxl
 import db
 from app import create_app
@@ -198,6 +204,11 @@ def test_all():
     # 備份與還原
     r = post(adm, "/admin/settings", act="backup")
     assert r.status_code == 302
+    import views_admin_helpers as h
+    name = h.list_backups()[0]["name"]
+    r = post(adm, "/admin/settings", act="restore", name=name)
+    assert r.status_code == 302 and db.connect().execute("select count(*) from vendors").fetchone()[0] == 4
+    assert db.connect().execute("select count(*) from employees").fetchone()[0] >= 5
     print("ALL OK")
 
 

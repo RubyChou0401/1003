@@ -1,5 +1,6 @@
 """後台共用函式：編號、優惠版本建立、備份、檔案上傳。"""
 import glob
+import json
 import os
 import re
 import secrets
@@ -57,18 +58,37 @@ def one_year_after(d):
 
 
 # ---------------------------------------------------------------- 備份
+# SQLite：複製整個資料庫檔。PostgreSQL（Supabase）：匯出所有資料表為 JSON（另有 Supabase 平台層級備份）。
+DUMP_TABLES = ["roles", "role_permissions", "categories", "regions", "employees", "vendors", "stores", "offers",
+               "offer_versions", "version_regions", "version_stores", "review_logs", "announcements", "audit_logs",
+               "import_batches", "usage_events", "settings"]
+SEQ_TABLES = ["roles", "categories", "regions", "employees", "vendors", "stores", "offers", "offer_versions",
+              "review_logs", "announcements", "audit_logs", "import_batches", "usage_events"]
+BACKUP_NAME = r"welfare-[0-9\-]+-[a-z\-]+\.(db|json)"
+
+
 def make_backup(reason="manual"):
     os.makedirs(db.BACKUP_DIR, exist_ok=True)
     stamp = db.datetime.now(db.TZ).strftime("%Y%m%d-%H%M%S")
-    name = f"welfare-{stamp}-{reason}.db"
+    name = f"welfare-{stamp}-{reason}.{'json' if db.PG else 'db'}"
     path = os.path.join(db.BACKUP_DIR, name)
-    src = db.connect()
-    dst = sqlite3.connect(path)
-    try:
-        src.backup(dst)
-    finally:
-        dst.close()
-        src.close()
+    if db.PG:
+        conn = db.connect()
+        try:
+            data = {t: [dict(r) for r in conn.execute(f"SELECT * FROM {t}").fetchall()] for t in DUMP_TABLES}
+        finally:
+            conn.close()
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        os.chmod(path, 0o600)
+    else:
+        src = db.connect()
+        dst = sqlite3.connect(path)
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
     if reason == "auto":
         prune_backups()
     return name
@@ -76,25 +96,47 @@ def make_backup(reason="manual"):
 
 def list_backups():
     out = []
-    for p in sorted(glob.glob(os.path.join(db.BACKUP_DIR, "welfare-*.db")), reverse=True):
-        out.append({"name": os.path.basename(p), "size": os.path.getsize(p)})
+    for p in sorted(glob.glob(os.path.join(db.BACKUP_DIR, "welfare-*")), reverse=True):
+        if re.fullmatch(BACKUP_NAME, os.path.basename(p)):
+            out.append({"name": os.path.basename(p), "size": os.path.getsize(p)})
     return out
 
 
 def prune_backups():
     keep = db.setting_int("backup_keep")
-    autos = [b["name"] for b in list_backups() if b["name"].endswith("-auto.db")]
+    autos = [b["name"] for b in list_backups() if "-auto." in b["name"]]
     for n in autos[keep:]:
         os.remove(os.path.join(db.BACKUP_DIR, n))
 
 
 def restore_backup(name):
-    if not re.fullmatch(r"welfare-[0-9\-]+-[a-z\-]+\.db", name):
+    if not re.fullmatch(BACKUP_NAME, name):
         raise ValueError("bad name")
     path = os.path.join(db.BACKUP_DIR, name)
     if not os.path.exists(path):
         raise ValueError("missing")
     make_backup("pre-restore")
+    if db.PG:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        conn = db.connect()
+        try:
+            for t in reversed(DUMP_TABLES):
+                conn.execute(f"DELETE FROM {t}")
+            for t in DUMP_TABLES:
+                for r in data.get(t, []):
+                    cols = list(r)
+                    conn.execute(f"INSERT INTO {t}({','.join(cols)}) VALUES({','.join('?'*len(cols))})" +
+                                 (" ON CONFLICT DO NOTHING" if t in SEQ_TABLES else ""), [r[c] for c in cols])
+            for t in SEQ_TABLES:
+                conn.execute(f"SELECT setval(pg_get_serial_sequence('{t}','id'), COALESCE((SELECT MAX(id) FROM {t}),0)+1, false)")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+        return
     src = sqlite3.connect(path)
     live = db.connect()
     try:

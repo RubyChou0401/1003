@@ -114,7 +114,7 @@ def create_app():
             db.get_db().commit()
             from views_admin_helpers import make_backup, list_backups
             stamp = db.datetime.now(db.TZ).strftime("%Y%m%d")
-            if not any(b["name"].startswith(f"welfare-{stamp}") and b["name"].endswith("-auto.db") for b in list_backups()):
+            if not any(b["name"].startswith(f"welfare-{stamp}") and "-auto." in b["name"] for b in list_backups()):
                 make_backup("auto")
 
     run_expire()

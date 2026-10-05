@@ -12,7 +12,7 @@ import excel
 import lifecycle
 from db import q, ex, now, today, iso, audit, diff, setting, PERMISSIONS
 from security import perm_required, password_problem
-from views_admin_helpers import next_code, save_image, make_backup, list_backups, restore_backup
+from views_admin_helpers import next_code, save_image, make_backup, list_backups, restore_backup, BACKUP_NAME
 
 bp = Blueprint("admin", __name__)
 
@@ -24,7 +24,7 @@ def page_args(per=20):
 
 def paginate(sql, args, per=20):
     p, per, off = page_args(per)
-    total = q(f"SELECT COUNT(*) c FROM ({sql})", args, one=True)["c"]
+    total = q(f"SELECT COUNT(*) c FROM ({sql}) _t", args, one=True)["c"]
     rows = q(sql + f" LIMIT {per} OFFSET {off}", args)
     return rows, {"page": p, "pages": max(1, -(-total // per)), "total": total}
 
@@ -64,7 +64,7 @@ def dashboard():
            "views": one("SELECT COUNT(*) c FROM usage_events WHERE kind='view' AND at>=?", (month,))}
     top = q("SELECT v.id, v.name, ven.name vn, COUNT(*) c FROM usage_events u JOIN offer_versions v ON v.id=u.version_id "
             "JOIN offers o ON o.id=v.offer_id JOIN vendors ven ON ven.id=o.vendor_id WHERE u.kind='view' AND u.at>=? "
-            "GROUP BY v.id ORDER BY c DESC LIMIT 5", (month,))
+            "GROUP BY v.id, ven.name ORDER BY c DESC LIMIT 5", (month,))
     topcat = q("SELECT c.name, COUNT(*) n FROM usage_events u JOIN categories c ON c.id=u.category_id WHERE u.kind IN ('view','search') "
                "AND u.at>=? GROUP BY c.id ORDER BY n DESC LIMIT 5", (month,))
     topreg = q("SELECT r.name, COUNT(*) n FROM usage_events u JOIN regions r ON r.id=u.region_id WHERE u.kind IN ('view','search') "
@@ -627,7 +627,7 @@ def settings():
 @bp.route("/backups/<name>")
 @perm_required("admin.manage")
 def backup_download(name):
-    if not re.fullmatch(r"welfare-[0-9\-]+-[a-z\-]+\.db", name):
+    if not re.fullmatch(BACKUP_NAME, name):
         abort(404)
     audit("下載備份", "backup", name, name)
     return send_from_directory(db.BACKUP_DIR, name, as_attachment=True)

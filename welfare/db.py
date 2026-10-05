@@ -1,6 +1,7 @@
 """資料庫、時間與稽核工具。所有日期時間一律使用 Asia/Taipei（UTC+8）。"""
 import json
 import os
+import re
 import sqlite3
 from datetime import datetime, date, timedelta, timezone
 
@@ -32,7 +33,115 @@ def get_db():
     return g.db
 
 
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+PG = DATABASE_URL.startswith(("postgres://", "postgresql://"))
+
+# 含有自動編號 id 欄位的資料表（PostgreSQL 以 RETURNING id 取得 lastrowid）
+ID_TABLES = {"roles", "employees", "categories", "regions", "vendors", "stores", "offers", "offer_versions",
+             "review_logs", "announcements", "audit_logs", "import_batches", "usage_events"}
+
+
+def to_pg(sql):
+    """把本專案使用的 SQLite 語法轉成 PostgreSQL。"""
+    ignore = bool(re.match(r"\s*INSERT OR IGNORE", sql, re.I))
+    sql = re.sub(r"INSERT OR IGNORE INTO", "INSERT INTO", sql, flags=re.I)
+    sql = re.sub(r"group_concat\(([^,()]+),\s*('[^']*')\)", r"string_agg(\1, \2)", sql)
+    sql = re.sub(r"\bid INTEGER PRIMARY KEY\b", "id SERIAL PRIMARY KEY", sql)
+    sql = sql.replace(" LIKE ", " ILIKE ").replace("%", "%%")
+    sql = re.sub(r"(?<![:\w]):([A-Za-z_]\w*)", r"%(\1)s", sql)
+    sql = sql.replace("?", "%s")
+    m = re.match(r"\s*INSERT INTO (\w+)", sql, re.I)
+    if ignore:
+        sql = sql.rstrip().rstrip(";") + " ON CONFLICT DO NOTHING"
+    elif m and m.group(1) in ID_TABLES and "ON CONFLICT" not in sql.upper():
+        sql = sql.rstrip().rstrip(";") + " RETURNING id"
+    return sql
+
+
+class Row(dict):
+    """PostgreSQL 查詢結果列：可用欄位名稱或位置存取（與 sqlite3.Row 行為一致）。"""
+    def __getitem__(self, k):
+        return list(self.values())[k] if isinstance(k, int) else dict.__getitem__(self, k)
+
+
+class PGCursor:
+    def __init__(self, cur, returning):
+        self._cur, self.lastrowid = cur, None
+        if returning and cur.description:
+            r = cur.fetchone()
+            self.lastrowid = r[0] if r else None
+
+    def _rows(self, rows):
+        cols = [d[0] for d in self._cur.description]
+        return [Row(zip(cols, r)) for r in rows]
+
+    def fetchall(self):
+        return self._rows(self._cur.fetchall()) if self._cur.description else []
+
+    def __iter__(self):
+        return iter(self.fetchall())
+
+    def fetchone(self):
+        if not self._cur.description:
+            return None
+        r = self._cur.fetchone()
+        return self._rows([r])[0] if r else None
+
+
+_pool = None
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        import psycopg2.pool
+        dsn = DATABASE_URL
+        if "sslmode=" not in dsn and not re.search(r"@(localhost|127\.0\.0\.1)", dsn):
+            dsn += ("&" if "?" in dsn else "?") + "sslmode=require"
+        _pool = psycopg2.pool.ThreadedConnectionPool(1, int(os.environ.get("WELFARE_DB_POOL", 10)), dsn)
+    return _pool
+
+
+class PGConn:
+    def __init__(self):
+        self._raw = _get_pool().getconn()
+
+    def execute(self, sql, args=()):
+        cur = self._raw.cursor()
+        pg = to_pg(sql)
+        if isinstance(args, dict):
+            cur.execute(pg, args)
+        elif args:
+            cur.execute(pg, tuple(args))
+        else:
+            cur.execute(pg.replace("%%", "%"))
+        return PGCursor(cur, pg.endswith("RETURNING id"))
+
+    def commit(self):
+        self._raw.commit()
+
+    def rollback(self):
+        self._raw.rollback()
+
+    def close(self):
+        raw, self._raw = self._raw, None
+        if raw is None:
+            return
+        try:
+            raw.rollback()
+        finally:
+            _get_pool().putconn(raw)
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
 def connect(path=None):
+    if PG and path is None:
+        return PGConn()
     conn = sqlite3.connect(path or DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
@@ -75,6 +184,13 @@ CREATE TABLE IF NOT EXISTS roles(
   id INTEGER PRIMARY KEY, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, is_admin INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS role_permissions(
   role_id INTEGER NOT NULL REFERENCES roles(id), perm TEXT NOT NULL, PRIMARY KEY(role_id, perm));
+CREATE TABLE IF NOT EXISTS categories(
+  id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, sort INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS regions(
+  id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, sort INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
+  is_all INTEGER DEFAULT 0,   -- 1 = 全區（任何地區查詢都會包含）
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS employees(
   id INTEGER PRIMARY KEY, emp_no TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
   dept TEXT DEFAULT '', title TEXT DEFAULT '', region_id INTEGER REFERENCES regions(id),
@@ -82,13 +198,6 @@ CREATE TABLE IF NOT EXISTS employees(
   active INTEGER NOT NULL DEFAULT 1, role_id INTEGER NOT NULL REFERENCES roles(id),
   password_hash TEXT NOT NULL, must_change_pw INTEGER NOT NULL DEFAULT 1,
   failed_count INTEGER NOT NULL DEFAULT 0, locked_until TEXT, last_login TEXT,
-  created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS categories(
-  id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, sort INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
-  created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS regions(
-  id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, sort INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
-  is_all INTEGER DEFAULT 0,   -- 1 = 全區（任何地區查詢都會包含）
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS vendors(
   id INTEGER PRIMARY KEY, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, brand TEXT DEFAULT '',
@@ -170,7 +279,12 @@ def init_db():
     os.makedirs(BACKUP_DIR, exist_ok=True)
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     conn = connect()
-    conn.executescript(SCHEMA)
+    if PG:
+        for stmt in SCHEMA.split(";"):
+            if stmt.strip():
+                conn.execute(stmt)
+    else:
+        conn.executescript(SCHEMA)
     t = now()
     if not conn.execute("SELECT 1 FROM roles").fetchone():
         conn.execute("INSERT INTO roles(code,name,is_admin) VALUES('employee','一般員工',0)")

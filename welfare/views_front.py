@@ -179,7 +179,7 @@ def search():
         where.append("v.end_date<=:lim")
         params["lim"] = iso(today() + timedelta(days=setting_int("expiring_days")))
     order = {"latest": "v.is_pinned DESC, v.published_at DESC", "expiring": "v.end_date ASC",
-             "popular": "v.views DESC", "vendor": "ven.name COLLATE NOCASE ASC"}.get(sort, "v.published_at DESC")
+             "popular": "v.views DESC", "vendor": "lower(ven.name) ASC"}.get(sort, "v.published_at DESC")
     w = " AND ".join(where)
     results = cards(w, params, order)
     # 統計（不記錄個人；單一類別/地區才記，避免複選難以歸因）
