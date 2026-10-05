@@ -1,0 +1,12 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import csrf_field, show_errs with context %}{% block body %}
+<h1>{{ '編輯優惠草稿' if v and v.id else '新增優惠' }}：{{ vendor.name }}</h1>{% if v and v.id %}<p class="muted">V{{ v.version_no }}　{{ v.offer_code }}</p>{% endif %}{{ show_errs(errs) }}
+<form method="post" class="card" style="max-width:760px">{{ csrf_field() }}<input type="hidden" name="vendor_id" value="{{ vendor.id }}">
+<label>優惠名稱</label><input name="name" value="{{ v.name if v }}" required>
+<label>福利分類</label><select name="category_id" required><option value="">請選擇</option>{% for c in cats %}<option value="{{ c.id }}" {{ 'selected' if v and v.category_id==c.id }}>{{ c.name }}</option>{% endfor %}</select>
+<label>優惠內容</label><textarea name="content" required>{{ v.content if v }}</textarea>
+<label>使用方式</label><textarea name="usage">{{ v.usage if v }}</textarea><label>注意事項</label><textarea name="notes">{{ v.notes if v }}</textarea>
+<div class="grid g2"><div><label>開始日期</label><input type="date" name="start_date" value="{{ v.start_date if v }}" required></div><div><label>結束日期</label><input type="date" name="end_date" value="{{ v.end_date if v }}" required></div></div>
+<label>適用地區（至少一個）</label><div>{% for r in regs %}<label class="chk"><input type="checkbox" name="regions" value="{{ r.id }}" {{ 'checked' if v and r.id in v.regions }}>{{ r.name }}</label>{% endfor %}</div>
+<label>適用門市（{{ vendor.name }} 的啟用門市）</label><div>{% for s in stores %}<label class="chk"><input type="checkbox" name="stores" value="{{ s.id }}" {{ 'checked' if v and s.id in v.stores }}>{{ s.name }}</label>{% else %}<span class="muted small">此廠商尚無門市，可先到廠商頁新增。</span>{% endfor %}</div>
+<label class="chk"><input type="checkbox" name="is_pinned" value="1" {{ 'checked' if v and v.is_pinned }}>置頂</label><label class="chk"><input type="checkbox" name="is_recommended" value="1" {{ 'checked' if v and v.is_recommended }}>推薦</label>
+<p><button class="btn">儲存草稿</button> <a class="btn ghost" href="{{ url_for('admin.offer_detail', vid=v.id) if v and v.id else url_for('admin.offers') }}">取消</a></p></form>{% endblock %}

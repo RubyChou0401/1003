@@ -1,0 +1,8 @@
+{% extends 'front/base.html' %}{% from '_m.html' import csrf_field with context %}{% block title %}登入｜{{ site_name }}{% endblock %}
+{% block body %}<div class="login"><div class="card"><h1>{{ site_name }}</h1><p class="muted" style="text-align:center">專屬員工的生活優惠，一站查詢</p>
+{% if msg %}<div class="err" role="alert">{{ msg }}</div>{% endif %}
+<form method="post">{{ csrf_field() }}
+<label for="e">員工編號</label><input id="e" name="emp_no" type="text" autocomplete="username" autocapitalize="off" required autofocus>
+<label for="p">密碼</label><input id="p" name="password" type="password" autocomplete="current-password" required>
+<p><button class="btn" style="width:100%">登入</button></p></form>
+<p style="text-align:center"><a href="{{ url_for('front.forgot') }}">忘記密碼？</a></p></div></div>{% endblock %}

@@ -1,0 +1,8 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import badge, pager with context %}{% block body %}
+<div class="bar2"><h1>員工列表</h1><span><a class="btn" href="{{ url_for('admin.staff_form') }}">新增員工</a> <a class="btn ghost" href="{{ url_for('admin.import_upload', kind='employees') }}">Excel 匯入</a></span></div>
+<form class="filters"><div><label>搜尋</label><input type="search" name="q" value="{{ kw }}" placeholder="員工編號、姓名、部門"></div>
+<div><label>狀態</label><select name="status"><option value="">全部</option>{% for k,l in [('在職','在職'),('留停','留停'),('離職','離職'),('inactive','停用／離職'),('locked','鎖定中')] %}<option value="{{ k }}" {{ 'selected' if status==k }}>{{ l }}</option>{% endfor %}</select></div><button class="btn">查詢</button></form>
+<div class="tw"><table><tr><th>員工編號</th><th>姓名</th><th>部門</th><th>地區</th><th>員工狀態</th><th>帳號</th><th>角色</th><th></th></tr>
+{% for e in rows %}<tr><td>{{ e.emp_no }}</td><td>{{ e.name }}</td><td>{{ e.dept }}</td><td>{{ e.region_name or '' }}</td><td>{{ e.status }}</td>
+<td>{% if e.locked_until and e.locked_until > now_str %}鎖定{% elif e.active %}{{ badge('active') }}{% else %}{{ badge('inactive') }}{% endif %}</td><td>{{ e.role_name }}</td>
+<td><a href="{{ url_for('admin.staff_form', eid=e.id) }}">檢視／編輯</a></td></tr>{% else %}<tr><td colspan="8" class="muted">沒有符合的員工。</td></tr>{% endfor %}</table></div>{{ pager(pg) }}{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import badge, pager, csrf_field with context %}{% block body %}
+<div class="bar2"><h1>{{ TABS[tab][0] }}{% if tab=='pending' %}（優惠審核）{% endif %}</h1><span>{% if 'offer.edit' in perms %}<a class="btn" href="{{ url_for('admin.offer_new') }}">新增優惠</a>{% endif %}</span></div>
+<div class="tabs">{% for k,(l,_) in TABS.items() %}<a href="{{ url_for('admin.offers', tab=k) }}" class="{{ 'on' if k==tab }}">{{ l }}{% if k in counts %} ({{ counts[k] }}){% endif %}</a>{% endfor %}</div>
+<form class="filters"><input type="hidden" name="tab" value="{{ tab }}">
+<div><label>關鍵字</label><input type="search" name="kw" value="{{ f.get('kw','') }}" placeholder="廠商、優惠名稱、編號"></div>
+<div><label>廠商</label><select name="vendor_id"><option value="">全部</option>{% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if f.get('vendor_id')==v.id|string }}>{{ v.name }}</option>{% endfor %}</select></div>
+<div><label>分類</label><select name="cat"><option value="">全部</option>{% for c in cats %}<option value="{{ c.id }}" {{ 'selected' if f.get('cat')==c.id|string }}>{{ c.name }}</option>{% endfor %}</select></div>
+<div><label>地區</label><select name="region"><option value="">全部</option>{% for r in regs %}<option value="{{ r.id }}" {{ 'selected' if f.get('region')==r.id|string }}>{{ r.name }}</option>{% endfor %}</select></div>
+{% if tab=='expired' %}<div><label>過期日起</label><input type="date" name="from" value="{{ f.get('from','') }}"></div><div><label>過期日迄</label><input type="date" name="to" value="{{ f.get('to','') }}"></div>{% endif %}
+{% if tab in ('renewal','expiring','expired') %}<div><label>續約狀態</label><select name="renewal"><option value="">全部</option>{% for s in RS %}<option {{ 'selected' if f.get('renewal')==s }}>{{ s }}</option>{% endfor %}</select></div>{% endif %}
+<button class="btn">查詢</button></form>
+<div class="tw"><table><tr><th>廠商</th><th>優惠</th><th>版本</th><th>分類</th><th>期間</th><th>管理狀態</th><th>顯示狀態</th>{% if tab in ('renewal','expiring','expired') %}<th>續約狀態</th>{% endif %}<th>更新</th></tr>
+{% for v in rows %}<tr><td>{{ v.vendor_name }}</td><td><a href="{{ url_for('admin.offer_detail', vid=v.id) }}">{{ v.name }}</a><br><span class="small muted">{{ v.offer_code }}</span></td><td>V{{ v.version_no }}</td><td>{{ v.cat_name }}</td>
+<td class="nowrap">{{ v.start_date }}<br>～{{ v.end_date }}</td><td>{{ MGMT_LABEL[v.mgmt_status] }}</td><td>{{ badge(ds(v)) }}{% if v.mgmt_status=='published' and days_left(v)>=0 and days_left(v)<=30 %}<br><span class="small muted">剩 {{ days_left(v) }} 天</span>{% endif %}</td>
+{% if tab in ('renewal','expiring','expired') %}<td>{{ badge(v.renewal_status) }}{% if 'offer.edit' in perms and v.renewal_status!='已續約' %}<form method="post" action="{{ url_for('admin.renewal_status', vid=v.id) }}" class="inline-form">{{ csrf_field() }}<input type="hidden" name="back" value="{{ request.full_path }}"><select name="status" aria-label="續約狀態" style="min-height:34px;padding:2px 6px">{% for s in ['待聯繫','洽談中','待確認','不續約'] %}<option {{ 'selected' if v.renewal_status==s }}>{{ s }}</option>{% endfor %}</select><button class="btn sm ghost">更新</button></form>{% endif %}</td>{% endif %}
+<td class="small nowrap">{{ v.updated_at }}</td></tr>{% else %}<tr><td colspan="9" class="muted">沒有符合的優惠。</td></tr>{% endfor %}</table></div>{{ pager(pg) }}{% endblock %}

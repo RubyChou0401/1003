@@ -1,0 +1,4 @@
+{% extends 'front/base.html' %}{% from '_m.html' import csrf_field with context %}{% block title %}我的{% endblock %}{% block body %}<h1>我的</h1>
+<div class="card"><dl class="kv"><dt>姓名</dt><dd>{{ emp.name }}</dd><dt>員工編號</dt><dd>{{ emp.emp_no }}</dd><dt>所屬單位</dt><dd>{{ emp.dept or '—' }}</dd><dt>工作地區</dt><dd>{{ emp.region_name or '—' }}</dd></dl></div>
+<p><a class="btn ghost" href="{{ url_for('front.change_password') }}">修改密碼</a></p>
+<form method="post" action="{{ url_for('front.logout') }}">{{ csrf_field() }}<button class="btn danger">登出</button></form>{% endblock %}

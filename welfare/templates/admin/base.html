@@ -1,0 +1,18 @@
+{% from '_m.html' import flashes with context %}<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}管理後台{% endblock %}｜{{ site_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head><body>
+{% macro L(ep, label, perm=None) %}{% set kw = kwargs %}{% if not perm or perm in perms %}<a href="{{ url_for(ep, **kwargs) }}" class="{{ 'on' if request.endpoint==ep and (not kw or request.args.get('tab')==kw.get('tab')) }}">{{ label }}</a>{% endif %}{% endmacro %}
+<div class="adm"><aside class="side" id="side"><div class="t">{{ site_name }}<br><small style="font-weight:400">管理後台</small></div>
+{{ L('admin.dashboard','Dashboard','stats.view') }}
+{% if 'staff.manage' in perms or 'import.run' in perms %}<h4>員工管理</h4>{{ L('admin.staff','員工列表','staff.manage') }}{{ L('admin.import_upload','Excel 匯入','import.run', kind='employees') }}{{ L('admin.import_logs','匯入紀錄','import.run') }}{% endif %}
+<h4>廠商管理</h4>{{ L('admin.vendors','廠商列表') }}{{ L('admin.vendor_form','新增廠商','vendor.manage') }}{{ L('admin.stores','門市管理','vendor.manage') }}
+{% if 'basic.manage' in perms %}<h4>基礎資料</h4>{{ L('admin.categories','福利分類') }}{{ L('admin.regions','地區管理') }}{% endif %}
+<h4>優惠管理</h4>{{ L('admin.offers','全部優惠', tab='all') }}{{ L('admin.offers','草稿', tab='draft') }}{{ L('admin.offers','待審核', tab='pending') }}{{ L('admin.offers','有效優惠', tab='valid') }}{{ L('admin.offers','即將到期', tab='expiring') }}{{ L('admin.offers','過期優惠', tab='expired') }}{{ L('admin.offers','待續約', tab='renewal') }}{{ L('admin.history','優惠歷史版本') }}
+{% if 'import.run' in perms and 'offer.edit' in perms %}{{ L('admin.import_upload','優惠 Excel 匯入','import.run', kind='offers') }}{% endif %}
+{% if 'announce.manage' in perms %}<h4>公告</h4>{{ L('admin.announcements','公告管理') }}{% endif %}
+{% if 'stats.view' in perms %}<h4>統計</h4>{{ L('admin.stats','統計分析') }}{% endif %}
+{% if 'admin.manage' in perms or 'audit.view' in perms %}<h4>系統管理</h4>{{ L('admin.admins','管理者','admin.manage') }}{{ L('admin.roles','角色與權限','admin.manage') }}{{ L('admin.audit_log','操作紀錄','audit.view') }}{{ L('admin.settings','系統設定與備份','admin.manage') }}{% endif %}
+<h4>帳號</h4><a href="{{ url_for('front.home') }}">回員工前台</a>
+<form method="post" action="{{ url_for('front.logout') }}" style="padding:0 18px">{% from '_m.html' import csrf_field with context %}{{ csrf_field() }}<button class="btn sm ghost" style="color:#fff;border-color:#8fb0c2;margin-top:6px">登出（{{ me.name }}）</button></form></aside>
+<div class="main"><button class="btn ghost sm menu-btn" type="button">☰ 選單</button>{{ flashes() }}{% block body %}{% endblock %}</div></div>
+<script src="{{ url_for('static', filename='app.js') }}"></script></body></html>

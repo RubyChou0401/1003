@@ -1,0 +1,9 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import csrf_field, show_errs with context %}{% block body %}<h1>{{ '編輯公告' if a and a.id else '新增公告' }}</h1>{{ show_errs(errs) }}
+<form method="post" enctype="multipart/form-data" class="card" style="max-width:720px">{{ csrf_field() }}
+<label>類型</label><select name="kind">{% for k in KINDS %}<option {{ 'selected' if a and a.kind==k }}>{{ k }}</option>{% endfor %}</select>
+<label>標題</label><input name="title" value="{{ a.title if a }}" required><label>內容</label><textarea name="content" style="min-height:200px" required>{{ a.content if a }}</textarea>
+<label>圖片（選填）</label>{% if a and a.image %}<img src="{{ url_for('front.uploads', name=a.image) }}" alt="" style="max-height:80px"><br>{% endif %}<input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp">
+<div class="grid g2"><div><label>發布日期</label><input type="date" name="publish_date" value="{{ a.publish_date if a }}"></div><div><label>結束日期（到期自動從前台移除）</label><input type="date" name="end_date" value="{{ a.end_date or '' if a }}"></div></div>
+<label class="chk"><input type="checkbox" name="is_pinned" value="1" {{ 'checked' if a and a.is_pinned }}>置頂</label>
+<label>狀態</label><select name="status">{% for k,l in [('draft','草稿（不顯示）'),('published','發布'),('archived','封存')] %}<option value="{{ k }}" {{ 'selected' if a and a.status==k }}>{{ l }}</option>{% endfor %}</select>
+<p><button class="btn">儲存</button> <a class="btn ghost" href="{{ url_for('admin.announcements') }}">取消</a></p></form>{% endblock %}

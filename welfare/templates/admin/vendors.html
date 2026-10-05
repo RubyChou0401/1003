@@ -1,0 +1,7 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import badge, pager with context %}{% block body %}
+<div class="bar2"><h1>廠商列表</h1>{% if 'vendor.manage' in perms %}<a class="btn" href="{{ url_for('admin.vendor_form') }}">新增廠商</a>{% endif %}</div>
+<form class="filters"><div><label>搜尋</label><input type="search" name="q" value="{{ kw }}" placeholder="廠商編號、名稱、品牌"></div>
+<div><label>狀態</label><select name="status"><option value="">全部</option><option value="active" {{ 'selected' if status=='active' }}>啟用</option><option value="inactive" {{ 'selected' if status=='inactive' }}>停用</option></select></div><button class="btn">查詢</button></form>
+<div class="tw"><table><tr><th>編號</th><th>廠商</th><th>品牌</th><th>地區</th><th>聯絡人</th><th>門市</th><th>優惠</th><th>狀態</th><th></th></tr>
+{% for v in rows %}<tr><td>{{ v.code }}</td><td>{{ v.name }}</td><td>{{ v.brand }}</td><td>{{ v.region_name or '' }}</td><td>{{ v.contact }} {{ v.phone }}</td><td>{{ v.n_stores }}</td><td>{{ v.n_offers }}</td><td>{{ badge(v.status) }}</td>
+<td>{% if 'vendor.manage' in perms %}<a href="{{ url_for('admin.vendor_form', vid=v.id) }}">檢視／編輯</a>{% endif %}</td></tr>{% else %}<tr><td colspan="9" class="muted">沒有資料。</td></tr>{% endfor %}</table></div>{{ pager(pg) }}{% endblock %}

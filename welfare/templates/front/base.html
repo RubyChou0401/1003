@@ -1,0 +1,13 @@
+{% from '_m.html' import flashes with context %}<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>{% block title %}{{ site_name }}{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
+<body class="{% if me %}has-tab{% endif %}">
+{% if me %}<header class="top"><div class="wrap"><a class="brand" href="{{ url_for('front.home') }}">{{ site_name }}<small>專屬員工的生活優惠，一站查詢</small></a>
+<nav><a href="{{ url_for('front.home') }}" class="{{ 'on' if request.endpoint=='front.home' }}">首頁</a>
+<a href="{{ url_for('front.search') }}" class="{{ 'on' if request.endpoint=='front.search' }}">找優惠</a>
+<a href="{{ url_for('front.announcements') }}">公告</a><a href="{{ url_for('front.me') }}">我的</a>
+{% if perms %}<a href="{{ url_for('admin.dashboard') }}">管理後台</a>{% endif %}</nav></div></header>
+<nav class="tabbar"><a href="{{ url_for('front.home') }}" class="{{ 'on' if request.endpoint=='front.home' }}"><b>⌂</b>首頁</a>
+<a href="{{ url_for('front.search') }}" class="{{ 'on' if request.endpoint=='front.search' }}"><b>⌕</b>找優惠</a>
+<a href="{{ url_for('front.announcements') }}"><b>✉</b>公告</a><a href="{{ url_for('front.me') }}"><b>☺</b>我的</a></nav>{% endif %}
+<main class="wrap">{{ flashes() }}{% block body %}{% endblock %}</main><script src="{{ url_for('static', filename='app.js') }}"></script></body></html>

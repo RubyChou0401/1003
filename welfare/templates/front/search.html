@@ -1,0 +1,12 @@
+{% extends 'front/base.html' %}{% from '_m.html' import card with context %}{% block title %}搜尋優惠{% endblock %}
+{% block body %}
+<form method="get" class="card" role="search"><label for="q" style="margin-top:0">關鍵字</label>
+<input id="q" type="search" name="q" value="{{ kw }}" placeholder="搜尋店家、品牌、優惠或關鍵字（多個關鍵字用空白隔開）">
+<details {% if cat_ids or reg_ids or sort!='latest' %}open{% endif %} style="margin-top:8px"><summary style="min-height:44px;display:flex;align-items:center;cursor:pointer">篩選：分類、地區、排序</summary>
+<label>福利分類（可複選）</label><div>{% for c in cats %}<label class="chk"><input type="checkbox" name="cat" value="{{ c.id }}" {{ 'checked' if c.id in cat_ids }}>{{ c.name }}</label>{% endfor %}</div>
+<label>地區（可複選）</label><div>{% for r in regs %}<label class="chk"><input type="checkbox" name="region" value="{{ r.id }}" {{ 'checked' if r.id in reg_ids }}>{{ r.name }}</label>{% endfor %}</div>
+<label for="s">排序</label><select id="s" name="sort">{% for k,l in [('latest','最新'),('expiring','即將到期'),('popular','熱門'),('vendor','廠商名稱')] %}<option value="{{ k }}" {{ 'selected' if sort==k }}>{{ l }}</option>{% endfor %}</select></details>
+<p style="margin-bottom:0"><button class="btn">搜尋</button> <a class="btn ghost" href="{{ url_for('front.search') }}">清除條件</a></p></form>
+<p><b>共 {{ results|length }} 筆優惠</b></p>
+{% if results %}<div class="grid g3">{% for v in results %}{{ card(v) }}{% endfor %}</div>
+{% else %}<div class="card">找不到符合的優惠。試試減少關鍵字，或取消部分分類／地區條件。</div>{% endif %}{% endblock %}

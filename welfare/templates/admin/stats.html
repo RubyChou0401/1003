@@ -1,0 +1,8 @@
+{% extends 'admin/base.html' %}{% block body %}<h1>統計分析</h1>
+<div class="tabs">{% for k,l in [('month','本月'),('30','近 30 天'),('year','今年'),('all','全部')] %}<a href="?range={{ k }}" class="{{ 'on' if rng==k }}">{{ l }}</a>{% endfor %}</div>
+<p class="small muted">統計僅呈現彙總數字，不顯示個別員工的搜尋或瀏覽行為。</p>
+<div class="stat"><div><b>{{ tot.logins }}</b><span>登入人數</span></div><div><b>{{ tot.login_n }}</b><span>登入次數</span></div><div><b>{{ tot.views }}</b><span>優惠瀏覽</span></div><div><b>{{ tot.searches }}</b><span>搜尋次數</span></div></div>
+{% macro board(title, rows, key, extra=None) %}<div class="card"><h3>{{ title }}</h3>{% set mx = (rows|map(attribute='n')|max) if rows else 1 %}{% for r in rows %}<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between"><span>{{ r[key] }}{% if extra %} <span class="muted small">{{ r[extra] }}</span>{% endif %}</span><b>{{ r.n }}</b></div><div class="bar"><i style="width:{{ (r.n*100/mx)|round }}%"></i></div></div>{% else %}<span class="muted">尚無資料</span>{% endfor %}</div>{% endmacro %}
+<div class="grid g3" style="margin-top:12px">{{ board('熱門優惠', top_offers, 'name', 'vn') }}{{ board('熱門廠商', top_vendors, 'name') }}{{ board('熱門分類', top_cats, 'name') }}{{ board('熱門地區', top_regs, 'name') }}
+<div class="card"><h3>熱門「地區＋分類」搜尋</h3>{% for c in combos %}<p style="margin:0">{{ c.rn }}＋{{ c.cn }} <b>{{ c.n }}</b></p>{% else %}<span class="muted">尚無資料</span>{% endfor %}<p class="small muted">可作為開發新特約廠商的參考。</p></div>
+{{ board('熱門搜尋關鍵字', kws, 'keyword') }}</div>{% endblock %}

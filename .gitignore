@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+welfare/data/
+welfare/backups/
+welfare/uploads/*
+!welfare/uploads/.gitkeep

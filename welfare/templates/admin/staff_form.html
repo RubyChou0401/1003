@@ -1,0 +1,16 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import csrf_field, show_errs with context %}{% block body %}
+<p><a href="{{ url_for('admin.staff') }}" class="small">← 員工列表</a></p><h1>{{ '員工資料' if e and e.id else '新增員工' }}</h1>{{ show_errs(errs) }}
+<form method="post" class="card" style="max-width:640px">{{ csrf_field() }}
+<label>員工編號</label>{% if e and e.id %}<input value="{{ e.emp_no }}" disabled>{% else %}<input name="emp_no" value="{{ e.emp_no if e }}" required>{% endif %}
+<label>姓名</label><input name="name" value="{{ e.name if e }}" required>
+<label>部門</label><input name="dept" value="{{ e.dept if e }}"><label>職稱</label><input name="title" value="{{ e.title if e }}">
+<label>地區（工作區域）</label><select name="region_id"><option value="">—</option>{% for r in regions %}<option value="{{ r.id }}" {{ 'selected' if e and e.region_id==r.id }}>{{ r.name }}</option>{% endfor %}</select>
+<label>到職日</label><input type="date" name="hire_date" value="{{ e.hire_date or '' if e }}">
+<label>員工狀態</label><select name="status">{% for s in ['在職','留停','離職'] %}<option {{ 'selected' if e and e.status==s }}>{{ s }}</option>{% endfor %}</select>
+<label class="chk"><input type="checkbox" name="active" value="1" {{ 'checked' if not e or e.active }}> 帳號啟用（離職一律停用）</label>
+{% if not (e and e.id) %}<label>初始密碼（員工首次登入須修改）</label><input name="password" type="text" autocomplete="off" required>{% endif %}
+<p><button class="btn">儲存</button></p></form>
+{% if e and e.id %}<div class="card" style="max-width:640px"><h3>帳號安全</h3>
+<p class="small muted">最後登入：{{ e.last_login or '尚未登入' }}　{% if e.locked_until and e.locked_until > now_str %}｜鎖定至 {{ e.locked_until }}{% endif %}<br>管理者無法查看現有密碼，只能重設為臨時密碼。</p>
+<form method="post" action="{{ url_for('admin.staff_reset', eid=e.id) }}" class="inline-form">{{ csrf_field() }}<input name="password" type="text" placeholder="臨時密碼（8碼以上含英數）" autocomplete="off" required><button class="btn ghost" data-confirm="確定重設此員工密碼？">重設密碼</button></form>
+<form method="post" action="{{ url_for('admin.staff_unlock', eid=e.id) }}" class="inline">{{ csrf_field() }}<button class="btn ghost">解除鎖定</button></form></div>{% endif %}{% endblock %}

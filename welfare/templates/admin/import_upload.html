@@ -1,0 +1,7 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import csrf_field with context %}{% block body %}
+<h1>Excel 匯入：{{ k.label }}</h1>{% if err %}<div class="err" role="alert">{{ err }}</div>{% endif %}
+<div class="card" style="max-width:720px"><p>流程：上傳 → 檢核 → <b>預覽</b> → 您確認 → 正式匯入。預覽階段不會寫入任何正式資料，錯誤的列也不會被匯入。</p>
+<p class="small">必要欄位：<b>{{ k.req|join('、') }}</b>；完整欄位：{{ k.cols|join('、') }}。
+{% if kind=='employees' %}新增員工必須有「初始密碼」；既有員工以員工編號更新，匯入<b>不會</b>重設密碼或變更角色。{% else %}廠商以「廠商編號」識別；「適用門市」與「地區」可用頓號分隔多個；匯入僅能建立草稿／待審核，同名同期間的草稿會被更新，已發布版本不會被覆蓋（請用續約）。{% endif %}</p>
+<p><a href="{{ url_for('admin.import_template', kind=kind) }}">下載範本</a></p>
+<form method="post" enctype="multipart/form-data">{{ csrf_field() }}<label>選擇 .xlsx 檔案</label><input type="file" name="file" accept=".xlsx" required><p><button class="btn">上傳並檢核</button></p></form></div>{% endblock %}

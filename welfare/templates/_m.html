@@ -1,0 +1,17 @@
+{% macro csrf_field() %}<input type="hidden" name="_csrf" value="{{ csrf() }}">{% endmacro %}
+{% macro badge(s) %}<span class="badge b-{{ s }}">{{ s }}</span>{% endmacro %}
+{% macro flashes() %}{% for m in get_flashed_messages() %}<div class="flash" role="status">{{ m }}</div>{% endfor %}{% endmacro %}
+{% macro show_errs(list) %}{% if list %}<div class="err" role="alert"><ul>{% for e in list %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}{% endmacro %}
+{% macro pager(pg) %}{% if pg.pages > 1 %}<div class="pager">
+  {% set args = request.args.to_dict() %}
+  {% if pg.page > 1 %}{% set _ = args.update({'page': pg.page-1}) %}<a class="btn ghost sm" href="?{{ args|urlencode }}">上一頁</a>{% endif %}
+  <span class="small muted">第 {{ pg.page }} / {{ pg.pages }} 頁（共 {{ pg.total }} 筆）</span>
+  {% if pg.page < pg.pages %}{% set _ = args.update({'page': pg.page+1}) %}<a class="btn ghost sm" href="?{{ args|urlencode }}">下一頁</a>{% endif %}
+</div>{% endif %}{% endmacro %}
+{% macro logo(name, vendor_name, cls='logo') %}{% if name %}<img class="{{ cls }}" src="{{ url_for('front.uploads', name=name) }}" alt="" loading="lazy">{% else %}<span class="{{ cls }}" aria-hidden="true">{{ vendor_name[:1] }}</span>{% endif %}{% endmacro %}
+{% macro card(v) %}<a class="card offer" href="{{ url_for('front.offer_detail', vid=v.id) }}">
+  <div class="vn">{{ logo(v.vendor_logo, v.vendor_name) }}<span>{{ v.vendor_name }}<br><span class="meta">{{ v.cat_name }}｜{{ v.region_names }}</span></span></div>
+  <div class="ti">{{ v.name }}</div>
+  <div class="meta">{{ v.content|truncate(48) }}</div>
+  <div class="meta">{{ v.start_date|replace('-','/') }}～{{ v.end_date|replace('-','/') }} {% set s = ds(v) %}<span class="badge b-{{ s }}">{{ s }}</span></div>
+  <div><span class="btn ghost sm">查看優惠</span></div></a>{% endmacro %}

@@ -1,0 +1,4 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import badge, pager with context %}{% block body %}<h1>優惠歷史版本</h1>
+<form class="filters"><div><label>搜尋</label><input type="search" name="kw" value="{{ kw }}" placeholder="廠商、優惠名稱、編號"></div><button class="btn">查詢</button></form>
+{% for o, vs in out %}<div class="card"><b>{{ o.vendor_name }}</b> <span class="muted small">{{ o.code }}</span>
+<div class="tw" style="margin-top:8px"><table><tr><th>版本</th><th>優惠</th><th>期間</th><th>狀態</th></tr>{% for v in vs %}<tr><td><a href="{{ url_for('admin.offer_detail', vid=v.id) }}">V{{ v.version_no }}</a></td><td>{{ v.name }}</td><td>{{ v.start_date }}～{{ v.end_date }}</td><td>{{ badge(ds(v)) }}</td></tr>{% endfor %}</table></div></div>{% else %}<p class="muted">沒有資料。</p>{% endfor %}{{ pager(pg) }}{% endblock %}

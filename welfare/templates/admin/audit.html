@@ -1,0 +1,7 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import pager with context %}{% block body %}<h1>操作紀錄</h1>
+<form class="filters"><div><label>操作類型</label><input name="action" value="{{ f.get('action','') }}"></div><div><label>操作人</label><input name="actor" value="{{ f.get('actor','') }}"></div><div><label>對象</label><input name="target" value="{{ f.get('target','') }}"></div>
+<div><label>起</label><input type="date" name="from" value="{{ f.get('from','') }}"></div><div><label>迄</label><input type="date" name="to" value="{{ f.get('to','') }}"></div>
+<div><label>結果</label><select name="result"><option value="">全部</option><option value="fail" {{ 'selected' if f.get('result')=='fail' }}>僅失敗</option></select></div><button class="btn">查詢</button></form>
+<div class="tw"><table><tr><th>時間</th><th>操作人</th><th>操作</th><th>對象</th><th>結果</th><th>異動前後</th></tr>
+{% for r in rows %}<tr><td class="nowrap small">{{ r.at }}</td><td>{{ r.actor_name }}</td><td>{{ r.action }}</td><td>{{ r.target_type or '' }} {{ r.target_label or '' }}</td><td>{{ r.result }}</td>
+<td class="small">{% if r.diff %}{% for k,v in json.loads(r.diff).items() %}<div><b>{{ k }}</b>：{{ v[0] if v[0] not in (None,'') else '∅' }} → {{ v[1] if v[1] not in (None,'') else '∅' }}</div>{% endfor %}{% endif %}</td></tr>{% else %}<tr><td colspan="6" class="muted">沒有紀錄。</td></tr>{% endfor %}</table></div>{{ pager(pg) }}{% endblock %}

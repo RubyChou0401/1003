@@ -1,0 +1,15 @@
+{% extends 'front/base.html' %}{% from '_m.html' import logo with context %}{% block title %}{{ v.name }}｜{{ v.vendor_name }}{% endblock %}
+{% block body %}<p><a href="{{ url_for('front.search') }}" data-back class="small">← 返回</a></p>
+<div class="card"><div class="vn" style="display:flex;gap:12px;align-items:center">{{ logo(v.vendor_logo, v.vendor_name) }}<div><h1 style="margin:0">{{ v.vendor_name }}</h1><span class="muted">{{ v.vendor_brand }}</span></div></div></div>
+<div class="card"><h2>{{ v.name }}</h2><p><span class="badge">{{ v.cat_name }}</span> {% set s = ds(v) %}<span class="badge b-{{ s }}">{{ s }}</span> {% for r in regs %}<span class="badge">{{ r.name }}</span> {% endfor %}</p>
+<h3>優惠內容</h3><p class="pre">{{ v.content }}</p>
+<h3>優惠期限</h3><p><b>優惠期間：{{ v.start_date|replace('-','/') }}～{{ v.end_date|replace('-','/') }}</b>{% if days_left(v) <= 30 %}（剩 {{ days_left(v) }} 天）{% endif %}</p>
+{% if v.usage %}<h3>使用方式</h3><p class="pre">{{ v.usage }}</p>{% endif %}
+{% if v.notes %}<h3>注意事項</h3><p class="pre">{{ v.notes }}</p>{% endif %}</div>
+<div class="card"><h3>廠商資訊</h3><dl class="kv">
+{% if vendor.address %}<dt>地址</dt><dd>{{ vendor.address }}</dd>{% endif %}{% if vendor.phone %}<dt>電話</dt><dd><a href="tel:{{ vendor.phone }}">{{ vendor.phone }}</a></dd>{% endif %}
+{% if is_url(vendor.website) %}<dt>官方網站</dt><dd><a href="{{ vendor.website }}" target="_blank" rel="noopener noreferrer">{{ vendor.website }}</a></dd>{% endif %}
+{% if is_url(vendor.map_url) %}<dt>Google Map</dt><dd><a href="{{ vendor.map_url }}" target="_blank" rel="noopener noreferrer">開啟地圖</a></dd>{% endif %}</dl></div>
+<div class="card"><h3>適用門市</h3>{% if stores %}{% for s in stores %}<p style="margin:0 0 10px"><b>{{ s.name }}</b> <span class="muted small">{{ s.region_name or '' }}</span><br>
+{{ s.address }} {% if s.phone %}｜<a href="tel:{{ s.phone }}">{{ s.phone }}</a>{% endif %} {% if is_url(s.map_url) %}｜<a href="{{ s.map_url }}" target="_blank" rel="noopener noreferrer">地圖</a>{% endif %}</p>{% endfor %}
+{% else %}<p class="muted">未指定特定門市，請依「優惠內容」或洽廠商確認適用範圍。</p>{% endif %}</div>{% endblock %}

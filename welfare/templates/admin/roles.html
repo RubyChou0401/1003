@@ -1,0 +1,3 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import csrf_field with context %}{% block body %}<h1>角色與權限</h1><p class="muted small">一般員工只能使用前台，不可被授予後台權限。系統管理員永遠保有「管理者、角色、權限、系統設定」。</p>
+<form method="post">{{ csrf_field() }}<div class="tw"><table><tr><th>權限</th>{% for r in roles if r.id>1 %}<th>{{ r.name }}</th>{% endfor %}</tr>{% for p,l in PERMS %}<tr><td>{{ l }}<br><span class="small muted">{{ p }}</span></td>
+{% for r in roles if r.id>1 %}<td><input type="checkbox" style="width:20px;height:20px" name="{{ r.id }}:{{ p }}" {{ 'checked' if (r.id,p) in grants }} {{ 'disabled checked' if r.id==3 and p=='admin.manage' }} aria-label="{{ r.name }} {{ l }}"></td>{% endfor %}</tr>{% endfor %}</table></div><p><button class="btn">儲存權限</button></p></form>{% endblock %}

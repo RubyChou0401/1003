@@ -1,0 +1,14 @@
+{% extends 'front/base.html' %}{% from '_m.html' import card with context %}
+{% block body %}
+<section class="hero"><h1>今天想找什麼優惠？</h1>
+<form action="{{ url_for('front.search') }}" role="search"><input type="search" name="q" placeholder="搜尋店家、品牌、優惠或關鍵字" aria-label="搜尋"><button class="btn">搜尋</button></form></section>
+<h2>福利分類</h2><div class="chips">{% for c in cats %}<a class="chip" href="{{ url_for('front.search', cat=c.id) }}">{{ c.name }}</a>{% endfor %}</div>
+<h2 style="margin-top:18px">地區</h2><div class="chips">
+{% if me.region_id %}<a class="chip on" href="{{ url_for('front.search', region=me.region_id) }}">我的工作區域</a>{% endif %}
+{% for r in regs %}<a class="chip" href="{{ url_for('front.search', region=r.id) }}">{{ r.name }}</a>{% endfor %}</div>
+{% for title, items, sort in [('最新優惠', latest, 'latest'), ('熱門優惠', popular, 'popular'), ('即將到期', expiring, 'expiring')] %}
+<div class="sec"><h2>{{ title }}</h2><a href="{{ url_for('front.search', sort=sort) }}">看更多</a></div>
+{% if items %}<div class="grid g3">{% for v in items %}{{ card(v) }}{% endfor %}</div>{% else %}<p class="muted">目前沒有資料。</p>{% endif %}{% endfor %}
+<div class="sec"><h2>最新公告</h2><a href="{{ url_for('front.announcements') }}">全部公告</a></div>
+{% for a in anns %}<a class="card" style="display:block;color:inherit;text-decoration:none" href="{{ url_for('front.announcement', aid=a.id) }}"><b>{% if a.is_pinned %}📌 {% endif %}{{ a.title }}</b><br><span class="muted small">{{ a.kind }}｜{{ a.publish_date|replace('-','/') }}</span></a>{% else %}<p class="muted">目前沒有公告。</p>{% endfor %}
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import csrf_field, badge with context %}{% block body %}
+{% set st = ds(v) %}
+<p><a href="{{ url_for('admin.offers') }}" class="small">← 優惠列表</a></p>
+<div class="bar2"><h1 style="margin:0">{{ v.vendor_name }}｜{{ v.name }} <span class="muted">V{{ v.version_no }}</span></h1><span>{{ badge(st) }}</span></div>
+<div class="card"><dl class="kv"><dt>優惠編號</dt><dd>{{ v.offer_code }}</dd><dt>福利分類</dt><dd>{{ v.cat_name }}</dd><dt>適用地區</dt><dd>{{ regs|map(attribute='name')|join('、') }}</dd>
+<dt>優惠期間</dt><dd>{{ v.start_date }} ～ {{ v.end_date }}{% if v.mgmt_status=='published' and days_left(v)>=0 %}（剩 {{ days_left(v) }} 天）{% endif %}</dd>
+<dt>管理狀態</dt><dd>{{ MGMT_LABEL[v.mgmt_status] }}{% if v.is_pinned %}｜置頂{% endif %}{% if v.is_recommended %}｜推薦{% endif %}</dd>
+<dt>優惠內容</dt><dd class="pre">{{ v.content }}</dd><dt>使用方式</dt><dd class="pre">{{ v.usage or '—' }}</dd><dt>注意事項</dt><dd class="pre">{{ v.notes or '—' }}</dd>
+<dt>適用門市</dt><dd>{{ stores|map(attribute='name')|join('、') or '—' }}</dd>
+<dt>建立</dt><dd>{{ users.get(v.created_by,'') }} {{ v.created_at }}</dd><dt>最後更新</dt><dd>{{ users.get(v.updated_by,'') }} {{ v.updated_at }}</dd>
+<dt>審核</dt><dd>{{ users.get(v.reviewed_by,'—') }} {{ v.reviewed_at or '' }} {% if v.review_note %}（{{ v.review_note }}）{% endif %}</dd><dt>發布</dt><dd>{{ users.get(v.published_by,'—') }} {{ v.published_at or '' }}</dd>
+<dt>瀏覽次數</dt><dd>{{ v.views }}</dd><dt>續約狀態</dt><dd>{{ badge(v.renewal_status) }}</dd></dl></div>
+<div class="card"><h3>操作</h3>
+{% macro act(name, label, cls='ghost', perm='offer.edit', need_note=false, confirm=None) %}{% if perm in perms %}<form method="post" action="{{ url_for('admin.offer_action', vid=v.id) }}" class="inline-form" style="margin:0 8px 8px 0">{{ csrf_field() }}<input type="hidden" name="act" value="{{ name }}">{% if need_note %}<input name="note" placeholder="原因（必填）" required style="width:200px">{% endif %}<button class="btn {{ cls }}" {% if confirm %}data-confirm="{{ confirm }}"{% endif %}>{{ label }}</button></form>{% endif %}{% endmacro %}
+{% if v.mgmt_status=='draft' %}{% if 'offer.edit' in perms %}<a class="btn ghost" href="{{ url_for('admin.offer_edit', vid=v.id) }}" style="margin-right:8px">編輯</a>{% endif %}{{ act('submit','提交審核','') }}{% endif %}
+{% if v.mgmt_status=='pending' %}{{ act('approve','核准並發布','','offer.review') }}{{ act('reject','退回修改','ghost','offer.review',true) }}{% endif %}
+{% if v.mgmt_status=='published' %}{{ act('disable','人工停用','danger','offer.review',false,'停用後員工前台立即不再顯示，確定？') }}{% endif %}
+{% if v.mgmt_status=='disabled' %}{{ act('enable','重新啟用','','offer.review') }}{% endif %}
+{% if v.mgmt_status in ('draft','disabled') or (v.mgmt_status=='published' and v.end_date < today_str) %}{{ act('archive','封存','ghost','offer.edit',false,'封存後不會刪除資料，確定？') }}{% endif %}
+{% if v.mgmt_status in ('published','disabled') and is_latest and 'offer.edit' in perms %}<form method="post" action="{{ url_for('admin.offer_renew', vid=v.id) }}" class="inline-form" style="margin:0 8px 8px 0">{{ csrf_field() }}<button class="btn" data-confirm="將以此版本內容建立新的草稿版本（原版本不會被修改），確定？">續約（建立新版本）</button></form>{% endif %}
+{% if v.mgmt_status!='archived' %}{{ act('pin', '取消置頂' if v.is_pinned else '設為置頂') }}{{ act('recommend', '取消推薦' if v.is_recommended else '設為推薦') }}{% endif %}
+{% if v.version_no>1 and v.mgmt_status=='published' and 'announce.manage' in perms %}<a class="btn ghost" href="{{ url_for('admin.announcement_form', from_version=v.id) }}">發布續約公告</a>{% endif %}
+{% if v.mgmt_status in ('published','disabled') and is_latest and v.renewal_status!='已續約' and 'offer.edit' in perms %}<form method="post" action="{{ url_for('admin.renewal_status', vid=v.id) }}" class="inline-form" style="margin-top:8px">{{ csrf_field() }}<label style="margin:0">續約狀態</label><select name="status" style="width:auto">{% for s in RS %}<option {{ 'selected' if v.renewal_status==s }}>{{ s }}</option>{% endfor %}</select><button class="btn ghost">更新</button></form>{% endif %}
+{% if v.mgmt_status!='draft' %}<p class="small muted">已送審／發布的版本內容不可修改；要變更請「續約」建立新版本。</p>{% endif %}</div>
+<div class="card"><h3>歷史版本</h3><div class="tw"><table><tr><th>版本</th><th>期間</th><th>狀態</th><th>續約</th></tr>{% for x in versions %}<tr><td>{% if x.id==v.id %}<b>V{{ x.version_no }}（目前檢視）</b>{% else %}<a href="{{ url_for('admin.offer_detail', vid=x.id) }}">V{{ x.version_no }}</a>{% endif %}</td><td>{{ x.start_date }}～{{ x.end_date }}</td><td>{{ badge(ds(x)) }}</td><td>{{ x.renewal_status }}</td></tr>{% endfor %}</table></div></div>
+<div class="card"><h3>審核與處理紀錄</h3>{% for l in logs %}<p style="margin:0 0 6px"><span class="muted small">{{ l.at }}</span>　{{ l.action }}　<span class="muted">{{ l.actor_name }}</span>{% if l.note %}：{{ l.note }}{% endif %}</p>{% else %}<span class="muted">無紀錄</span>{% endfor %}</div>{% endblock %}

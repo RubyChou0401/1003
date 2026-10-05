@@ -1,0 +1,11 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import csrf_field with context %}{% block body %}
+<p><a href="{{ url_for('admin.import_logs') }}" class="small">← 匯入紀錄</a></p><h1>匯入結果：{{ k.label }}</h1>
+<div class="card"><p class="muted small">{{ b.filename }}｜{{ b.actor_name }}｜{{ b.created_at }}</p>
+<p style="font-size:1.1rem">本次匯入 <b>{{ b.total }}</b> 筆　新增：<b>{{ b.n_add }}</b> 筆　更新：<b>{{ b.n_update }}</b> 筆　錯誤：<b style="color:var(--bad)">{{ b.n_error }}</b> 筆</p>
+{% if b.status == 'previewed' %}<p class="small">這是預覽，尚未寫入。確認後只會匯入沒有錯誤的 {{ b.n_add + b.n_update }} 筆；匯入前系統會自動備份資料。</p>
+<form method="post" class="inline" action="{{ url_for('admin.import_confirm', bid=b.id) }}">{{ csrf_field() }}<button class="btn" data-confirm="確認匯入？">確認匯入</button></form>
+<form method="post" class="inline" action="{{ url_for('admin.import_cancel', bid=b.id) }}">{{ csrf_field() }}<button class="btn ghost">取消匯入</button></form>
+{% else %}<p>狀態：<b>{{ {'confirmed':'已匯入','cancelled':'已取消（未寫入任何資料）','failed':'失敗（已還原，未寫入）'}[b.status] }}</b>{% if b.backup_file %}｜匯入前備份：{{ b.backup_file }}{% endif %}</p>{% endif %}
+{% if b.n_error %}<p><a class="btn ghost" href="{{ url_for('admin.import_detail', bid=b.id, errors=1) }}">查看錯誤</a> <a class="btn ghost" href="{{ url_for('admin.import_errors', bid=b.id) }}">下載錯誤清單</a></p>{% endif %}</div>
+{% if errors and (show_all or errors|length <= 20) %}<div class="tw"><table><tr><th>Excel 列</th><th>錯誤原因</th></tr>{% for e in errors %}<tr><td>第 {{ e.row }} 列</td><td>{{ e.errors|join('；') }}</td></tr>{% endfor %}</table></div>
+{% elif errors %}<p class="muted">共 {{ errors|length }} 筆錯誤，點「查看錯誤」顯示全部。</p>{% endif %}{% endblock %}

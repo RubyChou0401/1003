@@ -1,0 +1,2 @@
+{% extends 'admin/base.html' %}{% block body %}<h1>新增優惠：選擇廠商</h1><p class="muted">優惠必須屬於已存在且啟用的廠商。找不到廠商？請先<a href="{{ url_for('admin.vendor_form') }}">新增廠商</a>。</p>
+<form class="card" style="max-width:480px"><label style="margin-top:0">廠商</label><select name="vendor_id" required><option value="">請選擇</option>{% for v in vendors %}<option value="{{ v.id }}">{{ v.code }} {{ v.name }}</option>{% endfor %}</select><p><button class="btn">下一步</button></p></form>{% endblock %}

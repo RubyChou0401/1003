@@ -1,0 +1,8 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import csrf_field, show_errs with context %}{% block body %}<h1>{{ '門市資料' if s and s.id else '新增門市' }}</h1>{{ show_errs(errs) }}
+<form method="post" class="card" style="max-width:640px">{{ csrf_field() }}
+<label>廠商</label>{% if s and s.id %}<input value="{{ vendors|selectattr('id','equalto',s.vendor_id)|map(attribute='name')|first or '（廠商已停用）' }}" disabled>{% else %}<select name="vendor_id" required><option value="">請選擇</option>{% for v in vendors %}<option value="{{ v.id }}" {{ 'selected' if s and s.vendor_id==v.id }}>{{ v.code }} {{ v.name }}</option>{% endfor %}</select>{% endif %}
+<label>門市名稱</label><input name="name" value="{{ s.name if s }}" required>
+<label>地區</label><select name="region_id"><option value="">—</option>{% for r in regions %}<option value="{{ r.id }}" {{ 'selected' if s and s.region_id==r.id }}>{{ r.name }}</option>{% endfor %}</select>
+<label>地址</label><input name="address" value="{{ s.address if s }}"><label>電話</label><input name="phone" value="{{ s.phone if s }}"><label>Google Map 連結</label><input name="map_url" value="{{ s.map_url if s }}" placeholder="https://">
+<label>狀態</label><select name="status"><option value="active" {{ 'selected' if not s or s.status=='active' }}>啟用</option><option value="inactive" {{ 'selected' if s and s.status=='inactive' }}>停用</option></select>
+<p><button class="btn">儲存</button></p></form>{% endblock %}

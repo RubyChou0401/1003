@@ -1,0 +1,17 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import csrf_field, show_errs, badge with context %}{% block body %}
+<p><a href="{{ url_for('admin.vendors') }}" class="small">← 廠商列表</a></p><h1>{{ (v.name ~ '（' ~ v.code ~ '）') if v and v.id else '新增廠商' }}</h1>{{ show_errs(errs) }}
+<form method="post" enctype="multipart/form-data" class="card" style="max-width:720px">{{ csrf_field() }}
+<label>廠商編號{% if not (v and v.id) %}（留空自動產生）{% endif %}</label>{% if v and v.id %}<input value="{{ v.code }}" disabled>{% else %}<input name="code" value="{{ v.code if v }}">{% endif %}
+<label>廠商名稱</label><input name="name" value="{{ v.name if v }}" required><label>品牌名稱</label><input name="brand" value="{{ v.brand if v }}">
+<label>Logo（PNG／JPG／GIF／WebP）</label>{% if v and v.logo %}<img class="logo" src="{{ url_for('front.uploads', name=v.logo) }}" alt=""> {% endif %}<input type="file" name="logo" accept="image/png,image/jpeg,image/gif,image/webp">
+<label>聯絡人</label><input name="contact" value="{{ v.contact if v }}"><label>聯絡電話</label><input name="phone" value="{{ v.phone if v }}"><label>Email</label><input type="email" name="email" value="{{ v.email if v }}">
+<label>地址</label><input name="address" value="{{ v.address if v }}">
+<label>地區</label><select name="region_id"><option value="">—</option>{% for r in regions %}<option value="{{ r.id }}" {{ 'selected' if v and v.region_id==r.id }}>{{ r.name }}</option>{% endfor %}</select>
+<label>官方網站</label><input name="website" value="{{ v.website if v }}" placeholder="https://"><label>Google Map 連結</label><input name="map_url" value="{{ v.map_url if v }}" placeholder="https://">
+<label>備註</label><textarea name="note">{{ v.note if v }}</textarea>
+<label>狀態</label><select name="status"><option value="active" {{ 'selected' if not v or v.status=='active' }}>啟用</option><option value="inactive" {{ 'selected' if v and v.status=='inactive' }}>停用（不可建立新優惠，現有優惠不再於前台顯示）</option></select>
+<p><button class="btn">儲存</button></p></form>
+{% if v and v.id %}<div class="card"><div class="bar2"><h2 style="margin:0">門市</h2><a class="btn sm" href="{{ url_for('admin.store_form', vendor_id=v.id) }}">新增門市</a></div>
+<div class="tw"><table><tr><th>編號</th><th>門市</th><th>地區</th><th>地址</th><th>狀態</th><th></th></tr>{% for s in stores %}<tr><td>{{ s.code }}</td><td>{{ s.name }}</td><td>{{ s.region_name or '' }}</td><td>{{ s.address }}</td><td>{{ badge(s.status) }}</td><td><a href="{{ url_for('admin.store_form', sid=s.id) }}">編輯</a></td></tr>{% else %}<tr><td colspan="6" class="muted">尚無門市。</td></tr>{% endfor %}</table></div></div>
+<div class="card"><div class="bar2"><h2 style="margin:0">歷史優惠</h2>{% if 'offer.edit' in perms and v.status=='active' %}<a class="btn sm" href="{{ url_for('admin.offer_new', vendor_id=v.id) }}">新增優惠</a>{% endif %}</div>
+<div class="tw"><table><tr><th>優惠</th><th>版本</th><th>期間</th><th>狀態</th></tr>{% for o in offers %}<tr><td><a href="{{ url_for('admin.offer_detail', vid=o.id) }}">{{ o.name }}</a></td><td>V{{ o.version_no }}</td><td>{{ o.start_date }}～{{ o.end_date }}</td><td>{{ badge(ds(o)) }}</td></tr>{% else %}<tr><td colspan="4" class="muted">尚無優惠。</td></tr>{% endfor %}</table></div></div>{% endif %}{% endblock %}

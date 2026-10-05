@@ -1,0 +1,4 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import pager with context %}{% block body %}<h1>匯入紀錄</h1>
+<div class="tw"><table><tr><th>時間</th><th>類型</th><th>檔案</th><th>操作人</th><th>筆數</th><th>新增</th><th>更新</th><th>錯誤</th><th>狀態</th><th></th></tr>
+{% for b in rows %}<tr><td class="nowrap">{{ b.created_at }}</td><td>{{ KINDS[b.kind].label if b.kind in KINDS else b.kind }}</td><td>{{ b.filename }}</td><td>{{ b.actor_name }}</td><td>{{ b.total }}</td><td>{{ b.n_add }}</td><td>{{ b.n_update }}</td><td>{{ b.n_error }}</td>
+<td>{{ {'previewed':'待確認','confirmed':'已匯入','cancelled':'已取消','failed':'失敗'}[b.status] }}</td><td><a href="{{ url_for('admin.import_detail', bid=b.id) }}">詳情</a></td></tr>{% else %}<tr><td colspan="10" class="muted">尚無匯入紀錄。</td></tr>{% endfor %}</table></div>{{ pager(pg) }}{% endblock %}

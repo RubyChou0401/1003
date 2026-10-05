@@ -1,0 +1,18 @@
+{% extends 'admin/base.html' %}{% block body %}<h1>Dashboard</h1>
+<h2>提醒</h2>{% for lvl,msg,vid in reminders[:12] %}<div class="rem {{ lvl }}"><a href="{{ url_for('admin.offer_detail', vid=vid) }}">{{ msg }}</a></div>{% else %}<p class="muted">目前沒有需要處理的提醒。</p>{% endfor %}
+{% if reminders|length > 12 %}<p class="small muted">另有 {{ reminders|length - 12 }} 則提醒，請至「即將到期」「待續約」查看。</p>{% endif %}
+<h2 style="margin-top:20px">續約追蹤</h2><div class="stat">
+<div><b>{{ off.expiring }}</b><span><a href="{{ url_for('admin.offers', tab='expiring') }}">30 天內到期</a></span></div>
+<div><b>{{ off.expiring7 }}</b><span>7 天內到期</span></div>
+<div><b>{{ off.expired }}</b><span><a href="{{ url_for('admin.offers', tab='expired') }}">已過期</a></span></div>
+<div><b>{{ ren['待聯繫'] }}</b><span>待聯繫</span></div><div><b>{{ ren['待確認'] }}</b><span>待續約確認</span></div><div><b>{{ ren['洽談中'] }}</b><span>洽談中</span></div>
+<div><b>{{ ren['已續約'] }}</b><span>已續約</span></div><div><b>{{ ren['不續約'] }}</b><span>不續約</span></div></div>
+<p class="small muted">續約追蹤範圍：已發布且 30 天內到期、或近一年內已過期的優惠版本。<a href="{{ url_for('admin.offers', tab='renewal') }}">前往待續約清單</a></p>
+<div class="grid g2" style="margin-top:12px">
+<div class="card"><h3>員工</h3><div class="stat"><div><b>{{ emp.total }}</b><span>員工總數</span></div><div><b>{{ emp.active }}</b><span>啟用帳號</span></div><div><b>{{ emp.inactive }}</b><span>停用帳號</span></div></div></div>
+<div class="card"><h3>廠商</h3><div class="stat"><div><b>{{ ven.total }}</b><span>廠商總數</span></div><div><b>{{ ven.active }}</b><span>有效廠商</span></div><div><b>{{ ven.inactive }}</b><span>停用廠商</span></div></div></div>
+<div class="card"><h3>優惠</h3><div class="stat"><div><b>{{ off.valid }}</b><span>有效優惠</span></div><div><b>{{ off.expiring }}</b><span>即將到期</span></div><div><b>{{ off.expired }}</b><span>已過期</span></div><div><b>{{ off.pending }}</b><span><a href="{{ url_for('admin.offers', tab='pending') }}">待審核</a></span></div></div></div>
+<div class="card"><h3>本月使用情況</h3><div class="stat"><div><b>{{ use.logins }}</b><span>登入人數</span></div><div><b>{{ use.views }}</b><span>優惠瀏覽次數</span></div></div></div></div>
+<div class="grid g3"><div class="card"><h3>熱門優惠</h3>{% for t in top %}<p style="margin:0"><a href="{{ url_for('admin.offer_detail', vid=t.id) }}">{{ t.vn }}｜{{ t.name }}</a> <span class="muted">{{ t.c }}</span></p>{% else %}<span class="muted">尚無資料</span>{% endfor %}</div>
+<div class="card"><h3>熱門分類</h3>{% for t in topcat %}<p style="margin:0">{{ t.name }} <span class="muted">{{ t.n }}</span></p>{% else %}<span class="muted">尚無資料</span>{% endfor %}</div>
+<div class="card"><h3>熱門地區</h3>{% for t in topreg %}<p style="margin:0">{{ t.name }} <span class="muted">{{ t.n }}</span></p>{% else %}<span class="muted">尚無資料</span>{% endfor %}</div></div>{% endblock %}

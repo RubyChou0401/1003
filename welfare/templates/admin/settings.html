@@ -1,0 +1,13 @@
+{% extends 'admin/base.html' %}{% from '_m.html' import csrf_field with context %}{% block body %}<h1>系統設定</h1>
+<form method="post" class="card" style="max-width:640px">{{ csrf_field() }}
+<label>系統名稱</label><input name="site_name" value="{{ s.site_name }}">
+<label class="chk"><input type="checkbox" name="allow_leave_login" {{ 'checked' if s.allow_leave_login=='1' }}>留停員工可以登入</label>
+<label class="chk"><input type="checkbox" name="self_review_allowed" {{ 'checked' if s.self_review_allowed=='1' }}>優惠建立人可自行審核</label>
+<label>閒置自動登出（分鐘）</label><input type="number" name="session_idle_minutes" value="{{ s.session_idle_minutes }}" min="1">
+<label>登入錯誤上限（次）</label><input type="number" name="max_failed_logins" value="{{ s.max_failed_logins }}" min="1"><label>鎖定時間（分鐘）</label><input type="number" name="lock_minutes" value="{{ s.lock_minutes }}" min="1">
+<label>「即將到期」天數</label><input type="number" name="expiring_days" value="{{ s.expiring_days }}" min="1"><label>自動備份保留份數</label><input type="number" name="backup_keep" value="{{ s.backup_keep }}" min="1">
+<p><button class="btn" name="act" value="save">儲存設定</button></p></form>
+<div class="card"><h3>資料備份</h3><p class="small muted">系統每日自動備份，Excel 匯入前也會自動備份。還原前會先另存目前資料。</p>
+<form method="post">{{ csrf_field() }}<button class="btn" name="act" value="backup">立即備份</button></form>
+<div class="tw" style="margin-top:12px"><table><tr><th>檔案</th><th>大小</th><th></th></tr>{% for b in backups %}<tr><td>{{ b.name }}</td><td>{{ (b.size/1024)|round|int }} KB</td><td class="nowrap"><a href="{{ url_for('admin.backup_download', name=b.name) }}">下載</a>
+<form method="post" class="inline">{{ csrf_field() }}<input type="hidden" name="name" value="{{ b.name }}"><button class="btn sm danger" name="act" value="restore" data-confirm="還原會以此備份取代目前所有資料，確定？">還原</button></form></td></tr>{% else %}<tr><td colspan="3" class="muted">尚無備份。</td></tr>{% endfor %}</table></div></div>{% endblock %}
