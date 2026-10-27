@@ -289,10 +289,30 @@ Private Function AnnualLeaveDays(ByVal fullYears As Long) As Long
 End Function
 
 '==================================================
+' 計算「特休生效日」
+'   一般到職日：到職日 + N 個月(或 N 年) 的對應日
+'               例：2026/4/1 到職 → 滿半年 2026/9/30 → 生效日 2026/10/1
+'   月底到職(或對應日不存在，如 8/30 → 2/30)：整月計算，
+'               生效日為對應月份的下個月 1 日
+'               例：2025/7/31 到職 → 滿半年 2026/1/31 → 生效日 2026/2/1
+'==================================================
+Private Function EffectiveDate(ByVal hireDate As Date, _
+                               ByVal addMonths As Long) As Date
+    Dim d As Date
+    d = DateAdd("m", addMonths, hireDate)
+
+    If Day(hireDate + 1) = 1 Or Day(d) <> Day(hireDate) Then
+        EffectiveDate = DateSerial(Year(d), Month(d) + 1, 1)
+    Else
+        EffectiveDate = d
+    End If
+End Function
+
+'==================================================
 ' 判斷到職日於目標年月是否「新取得」特休資格
-'   completionDate   ：年資屆滿日（到職日加6個月/N年的對應日）
-'   qualificationDate：特休生效日 = 年資屆滿日的隔天（以此日所屬月份判斷）
-'   離職者須晚於年資屆滿日離職(離職日 > 屆滿日)才取得資格
+'   qualificationDate：特休生效日(以其所屬月份判斷是否列入)
+'   completionDate   ：年資屆滿日 = 生效日前一天
+'   離職者須在生效日(含)以後離職才取得資格(離職日 < 生效日 → 排除)
 '==================================================
 Private Function GetLeaveInfo(ByVal hireDate As Date, _
                               ByVal targetYear As Long, _
@@ -311,28 +331,28 @@ Private Function GetLeaveInfo(ByVal hireDate As Date, _
     completionDate = 0
 
     '滿6個月：3天（未滿1年）
-    d = DateAdd("m", 6, hireDate)
-    If IsTargetMonth(d + 1, targetYear, targetMonth) Then
+    d = EffectiveDate(hireDate, 6)
+    If IsTargetMonth(d, targetYear, targetMonth) Then
         leaveDays = 3
         leaveDesc = "滿半年"
-        completionDate = d
+        qualificationDate = d
     Else
-        '滿N年（N>=1）：生效日(屆滿日隔天)可能跨到下一年(如12/31到職)，故多試前一年
+        '滿N年（N>=1）：月底到職者生效日可能跨年(如12/31到職)，故同時試 N 與 N-1
         baseN = targetYear - Year(hireDate)
         For n = baseN To baseN - 1 Step -1
             If n >= 1 Then
-                d = DateAdd("yyyy", n, hireDate)
-                If IsTargetMonth(d + 1, targetYear, targetMonth) Then
+                d = EffectiveDate(hireDate, n * 12)
+                If IsTargetMonth(d, targetYear, targetMonth) Then
                     leaveDays = AnnualLeaveDays(n)
                     leaveDesc = "滿" & n & "年"
-                    completionDate = d
+                    qualificationDate = d
                     Exit For
                 End If
             End If
         Next n
     End If
 
-    If leaveDesc <> "" Then qualificationDate = completionDate + 1
+    If leaveDesc <> "" Then completionDate = qualificationDate - 1
     GetLeaveInfo = (leaveDesc <> "")
 
 End Function
@@ -429,23 +449,25 @@ Public Sub Test_LeaveRules()
     Debug.Assert AnnualLeaveDays(24) = 30
     Debug.Assert AnnualLeaveDays(40) = 30
 
-    '2024/1/1 到職：滿半年日 7/1、特休 7/2 生效 → 2024/7 取得3天；2025/1 取得7天；2026/1 取得10天
-    Debug.Assert GetLeaveInfo(DateSerial(2024, 1, 1), 2024, 7, dys, desc, q, c) And dys = 3
-    Debug.Assert c = DateSerial(2024, 7, 1) And q = DateSerial(2024, 7, 2)
-    Debug.Assert GetLeaveInfo(DateSerial(2024, 1, 1), 2025, 1, dys, desc, q, c) And dys = 7
+    '一般到職日：生效日 = 到職日 + 6個月/N年
+    Debug.Assert GetLeaveInfo(DateSerial(2026, 4, 1), 2026, 10, dys, desc, q, c) And dys = 3
+    Debug.Assert q = DateSerial(2026, 10, 1) And c = DateSerial(2026, 9, 30)
+    Debug.Assert GetLeaveInfo(DateSerial(2025, 10, 1), 2026, 10, dys, desc, q, c) And dys = 7
+    Debug.Assert q = DateSerial(2026, 10, 1)
+    Debug.Assert Not GetLeaveInfo(DateSerial(2025, 10, 1), 2026, 9, dys, desc, q, c)
+    Debug.Assert GetLeaveInfo(DateSerial(2025, 10, 1), 2026, 4, dys, desc, q, c) And dys = 3
     Debug.Assert GetLeaveInfo(DateSerial(2024, 1, 1), 2026, 1, dys, desc, q, c) And dys = 10
-    Debug.Assert Not GetLeaveInfo(DateSerial(2024, 1, 1), 2024, 8, dys, desc, q, c)
     Debug.Assert GetLeaveInfo(DateSerial(2015, 3, 15), 2025, 3, dys, desc, q, c) And dys = 16
 
-    '7/31 到職：1/31 滿半年，2/1 才有3天
+    '月底到職：7/31 到職，1/31 滿半年，2/1 生效
     Debug.Assert GetLeaveInfo(DateSerial(2024, 7, 31), 2025, 2, dys, desc, q, c) And dys = 3
-    Debug.Assert c = DateSerial(2025, 1, 31) And q = DateSerial(2025, 2, 1)
+    Debug.Assert q = DateSerial(2025, 2, 1) And c = DateSerial(2025, 1, 31)
     Debug.Assert Not GetLeaveInfo(DateSerial(2024, 7, 31), 2025, 1, dys, desc, q, c)
 
-    '8/31 到職：滿半年日落在2月底(2/28)，3/1 生效
+    '8/31 到職：2/28 滿半年，3/1 生效
     Debug.Assert GetLeaveInfo(DateSerial(2024, 8, 31), 2025, 3, dys, desc, q, c) And dys = 3
 
-    '12/31 到職：滿1年日 2024/12/31，2025/1/1 生效 → 2025/1 取得7天
+    '12/31 到職：滿1年 2024/12/31，2025/1/1 生效(跨年) → 2025/1 取得7天
     Debug.Assert GetLeaveInfo(DateSerial(2023, 12, 31), 2025, 1, dys, desc, q, c) And dys = 7
     Debug.Assert Not GetLeaveInfo(DateSerial(2023, 12, 31), 2024, 12, dys, desc, q, c)
 
