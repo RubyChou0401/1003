@@ -140,13 +140,13 @@ Public Sub FilterAndExtractLeaveQualified()
             GoTo NextEmployee
         End If
 
-        '離職日：須在年資屆滿日(含)以後才算取得資格；特休於屆滿日隔天生效
+        '離職日：須晚於年資屆滿日(即離職日 >= 特休生效日)才算取得資格
         If Not IsEmpty(dataArr(i, 16)) And Len(Trim$(CStr(dataArr(i, 16)))) > 0 Then
             If Not TryParseDate(dataArr(i, 16), resignDate) Then
                 invalidDateCount = invalidDateCount + 1
                 GoTo NextEmployee
             End If
-            If resignDate < completionDate Then GoTo NextEmployee
+            If resignDate <= completionDate Then GoTo NextEmployee
         End If
 
         resultCount = resultCount + 1
@@ -292,7 +292,7 @@ End Function
 ' 判斷到職日於目標年月是否「新取得」特休資格
 '   completionDate   ：年資屆滿日（到職日加6個月/N年的對應日）
 '   qualificationDate：特休生效日 = 年資屆滿日的隔天（以此日所屬月份判斷）
-'   離職者須在年資屆滿日(含)之後離職才取得資格
+'   離職者須晚於年資屆滿日離職(離職日 > 屆滿日)才取得資格
 '==================================================
 Private Function GetLeaveInfo(ByVal hireDate As Date, _
                               ByVal targetYear As Long, _
