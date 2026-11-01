@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>公司內部資訊查詢</title>
+<style>
+:root{--bg:#F4F6F8;--card:#fff;--ink:#17232B;--muted:#5A6972;--line:#D9E0E4;--accent:#1D5C74;--accent-ink:#fff;--soft:#E1EDF2;--mark:#FFE08A}
+@media (prefers-color-scheme:dark){:root{--bg:#0E161B;--card:#162128;--ink:#E5ECEF;--muted:#95A4AD;--line:#2A3941;--accent:#72BAD3;--accent-ink:#0E161B;--soft:#1A3441;--mark:#6b5410}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.65 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;padding:20px 16px 56px}
+.wrap{max-width:960px;margin:auto}
+h1{font-size:1.6rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 18px}
+.search{position:sticky;top:0;background:var(--bg);padding:8px 0 12px;z-index:5}
+.search input{width:100%;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-height:46px}
+.search input:focus{outline:2px solid var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;cursor:pointer;min-height:36px}
+.chip[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.count{color:var(--muted);font-size:.85rem;margin:8px 0}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(290px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.tag{align-self:flex-start;background:var(--soft);color:var(--accent);font-size:.78rem;border-radius:6px;padding:1px 8px}
+.card h2{font-size:1.1rem;margin:0}
+.card p{margin:0;color:var(--muted)}
+.card ul{margin:0;padding-left:1.1em}
+.card li{margin:2px 0}
+.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:6px}
+.links a{background:var(--accent);color:var(--accent-ink);text-decoration:none;border-radius:8px;padding:8px 12px;font-size:.9rem;min-height:38px;display:inline-flex;align-items:center}
+.links a.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.links a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+mark{background:var(--mark);color:inherit;border-radius:3px}
+.empty{text-align:center;color:var(--muted);padding:40px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>公司內部資訊查詢</h1>
+  <p class="sub">輸入關鍵字（如：生日、婚、EAP、社團），點選連結即可前往對應頁面。</p>
+  <div class="search">
+    <input id="q" type="search" placeholder="搜尋：福利、結婚禮金、諮詢專線、社團報名…" aria-label="搜尋內部資訊" autofocus>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="count" id="count" aria-live="polite"></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>找不到符合的資料，請換個關鍵字試試。</div>
+</div>
+
+<script>
+/* 新增資料：在 ITEMS 陣列加一筆即可。links 的 url 可為 Google Drive 或任何網址。 */
+const ITEMS=[
+{
+  cat:"福利",title:"職工福利權益懶人包",
+  summary:"同仁專屬權益一次看：喜慶補助、節慶禮金、年度補助與申請流程。",
+  points:[
+    "結婚禮金 $6,600：雙方同為公司同仁皆可申請，登記日後 2 個月內申請",
+    "生產福利金 $2,600：本人或配偶生產適用，生產後 3 個月內申請",
+    "傷病住院慰問金 $2,600：同一事件限一次，發生後 2 個月內辦理",
+    "生日禮金 $1,000、三節禮金（端午／中秋）各 $1,000：每月 1 日自動匯款",
+    "育兒補助 $1,000：每年 2 月 1 日發放，限 12 歲以下子女，須於前一年底前完成人事系統登錄",
+    "健康檢查補助 $1,000：任職滿一年，每年可申請一次（需收據正本）",
+    "喪葬慰問金 $1,300–$3,500：依親屬關係分級，洽人事部",
+    "申請流程：填寫「福利金申請單」→ 檢附證明文件 → 提交人事行政部"
+  ],
+  keywords:"福利 津貼 補助 禮金 結婚 生育 生產 住院 生日 端午 中秋 三節 育兒 健檢 健康檢查 喪葬 人事 申請單",
+  links:[{t:"查看福利懶人包",u:"https://drive.google.com/file/d/17xRs9bgw9aY_o0pDjV_8yxIwvOCbTJBd/view"}]
+},
+{
+  cat:"諮詢",title:"EAP 員工協助方案",
+  summary:"24 小時專業諮詢，涵蓋心理、工作、管理三類，受隱私保密政策保護。",
+  points:[
+    "24H 線上諮詢專線：0800-025-985、(02)2986-7890",
+    "LINE@：@wwupsy　Email：world.wide.union3@gmail.com",
+    "心理諮詢：心理健康、家庭關係、兩性議題",
+    "工作諮詢：工作壓力、職涯發展、人際關係",
+    "管理諮詢：管理溝通、績效評估、衝突管理",
+    "一對一駐點諮詢：總公司｜桃園機場｜高雄機場（請先撥專線預約）"
+  ],
+  keywords:"EAP 員工協助 心理 諮商 諮詢 壓力 專線 電話 保密 駐點 桃園機場 高雄機場 LINE",
+  links:[{t:"查看 EAP 小卡",u:"https://drive.google.com/file/d/1wAvRDoJuUfIv4d3jSdzUDKTOKLrITf6e/view"},
+         {t:"撥打專線",u:"tel:0800025985",alt:true}]
+},
+{
+  cat:"活動",title:"115 年度社團公告與報名",
+  summary:"今年度首度開放一人可加入三個社團，新進同仁可透過連結報名。",
+  points:[
+    "精選社團：樂活健走、籃球、藝文美學、多元興趣",
+    "一人最多可加入三個社團",
+    "主辦單位：社團推動小組"
+  ],
+  keywords:"社團 報名 活動 健走 籃球 藝文 興趣 新進同仁 Everrich 115年度",
+  links:[{t:"前往社團報名",u:"https://www.surveycake.com/s/OLkd2"},
+         {t:"查看公告海報",u:"https://drive.google.com/file/d/1he8llqix36mLaxxNXuzWueRd_3sy8Ocf/view",alt:true}]
+}
+];
+
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const reEsc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+let cat="全部";
+const cats=["全部",...new Set(ITEMS.map(i=>i.cat))];
+
+$("chips").innerHTML=cats.map(c=>`<button class="chip" aria-pressed="${c===cat}" data-c="${c}">${c}</button>`).join("");
+$("chips").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  cat=b.dataset.c;
+  [...$("chips").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.c===cat));
+  render();
+});
+$("q").addEventListener("input",render);
+
+function render(){
+  const terms=$("q").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const hit=ITEMS.filter(i=>{
+    if(cat!=="全部"&&i.cat!==cat)return false;
+    const hay=(i.title+i.summary+i.points.join("")+i.keywords+i.cat).toLowerCase();
+    return terms.every(t=>hay.includes(t));
+  });
+  const re=terms.length?new RegExp("("+terms.map(reEsc).join("|")+")","gi"):null;
+  const hl=s=>re?esc(s).replace(re,"<mark>$1</mark>"):esc(s);
+  $("grid").innerHTML=hit.map(i=>`
+    <article class="card">
+      <span class="tag">${esc(i.cat)}</span>
+      <h2>${hl(i.title)}</h2>
+      <p>${hl(i.summary)}</p>
+      <ul>${i.points.map(p=>`<li>${hl(p)}</li>`).join("")}</ul>
+      <div class="links">${i.links.map(l=>`<a class="${l.alt?"alt":""}" href="${esc(l.u)}" ${l.u.startsWith("http")?'target="_blank" rel="noopener noreferrer"':""}>${esc(l.t)}</a>`).join("")}</div>
+    </article>`).join("");
+  $("count").textContent=`共 ${hit.length} 筆結果`;
+  $("empty").hidden=hit.length>0;
+}
+render();
+</script>
+</body>
+</html>
